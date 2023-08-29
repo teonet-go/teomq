@@ -158,10 +158,10 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) b
 	if c.ServerMode() {
 
 		// Print received message
-		fmt.Printf("got from %s, \"%s\", len: %d, id: %d, tt: %6.3fms\n",
-			c, p.Data(), len(p.Data()), p.ID(),
-			float64(c.Triptime().Microseconds())/1000.0,
-		)
+		// fmt.Printf("got from %s, \"%s\", len: %d, id: %d, tt: %6.3fms\n",
+		// 	c, p.Data(), len(p.Data()), p.ID(),
+		// 	float64(c.Triptime().Microseconds())/1000.0,
+		// )
 
 		// Check consumerHello message from new consumer
 		if len(p.Data()) == len(consumerHello) && string(p.Data()) == string(consumerHello) {
@@ -180,9 +180,13 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) b
 		}
 
 		if br.consumers.existsUnsafe(c) != nil {
-			fmt.Printf("got answer '%s' from consumer %s\n", p.Data(), c)
+			fmt.Printf("got '%s' from consumer %s\n", p.Data(), c)
 			if producer := br.answers.get(answersData{c, 0}); producer != nil {
-				producer.ch.Send(p.Data())
+				if _, err := producer.ch.Send(p.Data()); err != nil {
+					fmt.Printf("send answer err: %s\n", err)
+					return true
+				}
+				fmt.Printf("send '%s' to producer %s\n", p.Data(), producer.ch)
 				return true
 			}
 			fmt.Printf("not found in answer\n")
@@ -191,12 +195,9 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) b
 
 		// Add messages to queue
 		br.set(&message{c, p.ID(), p.Data()})
-		fmt.Printf("message added to queue, queue length: %d\n", br.queue.Len())
+		fmt.Printf("message from producer %s added to queue, queue length: %d\n",
+			c, br.queue.Len())
 		br.wakeup()
-
-		// Send answer
-		// answer := []byte("Teonet answer to " + string(p.Data()))
-		// c.Send(answer)
 	}
 
 	return true
@@ -230,6 +231,6 @@ func (br *Broker) process() {
 		ch.Send(msg.data)
 		br.answers.add(answersData{msg.ch, 0}, answersData{ch, 0})
 
-		fmt.Printf("send '%s' to %s\n", msg.data, ch)
+		fmt.Printf("send '%s' to consumer %s\n", msg.data, ch)
 	}
 }
