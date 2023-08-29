@@ -5,11 +5,13 @@
 // Teonet messages queue. Messages queue module provides messages queue types
 // and methods.
 
-package teomqueue
+package teomq
 
 import (
 	"container/list"
 	"sync"
+
+	"github.com/teonet-go/teonet"
 )
 
 // queue contain messages queue data and methods to process it.
@@ -20,11 +22,12 @@ type queue struct {
 
 // message is the messageQueue data type.
 type message struct {
-	from string
+	from *teonet.Channel
+	id   int
 	data []byte
 }
 
-// newQueue creates a new MessageQueue object.
+// newQueue creates a new queue object.
 func newQueue() (q *queue) {
 	q = new(queue)
 	q.RWMutex = new(sync.RWMutex)
