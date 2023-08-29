@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 
 	"github.com/teonet-go/teomq"
@@ -15,13 +16,21 @@ const (
 	broker = "og71X6Y8Z44xuTU1Y2W4G9GkUsKmxnvvd9r"
 )
 
+var name = flag.String("name", "", "application short name")
+
 func main() {
 
 	// Teonet application logo
 	teonet.Logo(appName, appVersion)
 
+	flag.Parse()
+	short := appShort
+	if len(*name) > 0 {
+		short = *name
+	}
+
 	// Create and start new Teonet messages consumer
-	teo, err := teomq.NewConsumer(appShort, broker, teonet.Stat(true))
+	teo, err := teomq.NewConsumer(short, broker, teonet.Stat(true))
 	if err != nil {
 		panic("can't connect to Teonet, error: " + err.Error())
 	}

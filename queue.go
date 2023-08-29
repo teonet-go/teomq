@@ -22,7 +22,7 @@ type queue struct {
 
 // message is the messageQueue data type.
 type message struct {
-	from *teonet.Channel
+	ch   *teonet.Channel
 	id   int
 	data []byte
 }
@@ -63,4 +63,9 @@ func (q *queue) get() (messages *message) {
 	q.Remove(e)
 
 	return
+}
+
+// len returns number of elements in queue
+func (q *queue) len() int {
+	return q.Len()
 }
