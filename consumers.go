@@ -22,14 +22,17 @@ var (
 
 // queue contain messages queue data and methods to process it.
 type consumers struct {
-	list.List         // list of consumers
-	*sync.RWMutex     // mutext
-	idx           int // current index in list used in get function
+	list.List                   // list of consumers
+	indexMap                    // map of messages IDs
+	*sync.RWMutex               // mutext
+	e             *list.Element // current list rlement used in get function
 }
+type indexMap map[*teonet.Channel]*list.Element
 
 // newConsumers creates a new consumers object.
 func newConsumers() (c *consumers) {
 	c = new(consumers)
+	c.indexMap = make(indexMap)
 	c.RWMutex = new(sync.RWMutex)
 	return
 }
@@ -40,12 +43,13 @@ func (c *consumers) add(ch *teonet.Channel) error {
 	defer c.Unlock()
 
 	// Check consumer already exists
-	if c.existsUnsafe(ch) {
+	if c.existsUnsafe(ch) != nil {
 		return ErrConsumerAlreadyExists
 	}
 
-	// Insert new consumer to consumers list
-	c.PushBack(ch)
+	// Insert new consumer to consumers list and index
+	e := c.PushBack(ch)
+	c.indexMap[ch] = e
 
 	return nil
 }
@@ -55,12 +59,13 @@ func (c *consumers) del(ch *teonet.Channel) error {
 	c.Lock()
 	defer c.Unlock()
 
-	// Range by consumers list to find input teonet channel
-	for e := c.Front(); e != nil; e = e.Next() {
-		if v, ok := e.Value.(*teonet.Channel); ok && v == ch {
-			c.Remove(e)
-			return nil
+	if e := c.existsUnsafe(ch); e != nil {
+		if c.e == e {
+			c.e = e.Next()
 		}
+		c.Remove(e)
+		delete(c.indexMap, ch)
+		return nil
 	}
 
 	return ErrConsumerNotFound
@@ -72,39 +77,38 @@ func (c *consumers) get() (ch *teonet.Channel) {
 	defer c.Unlock()
 
 	// Check length of consumer
-	var l = c.Len()
-	if l == 0 {
+	if c.Len() == 0 {
 		return
 	}
 
-	// Check index more than length
-	if c.idx >= l {
-		c.idx = 0
+	// Get current element from list
+	if c.e == nil {
+		c.e = c.Front()
+	} else if c.e = c.e.Next(); c.e == nil {
+		c.e = c.Front()
+	}
+	// TODO: perhaps this condition is not needed here, because we first check
+	// the length of the list and the element of the list must be found.
+	if c.e == nil {
+		return
 	}
 
-	// Range by consumers list to find idx teonet channel
-	var i int
-	for e := c.Front(); e != nil; e = e.Next() {
-		if i == c.idx {
-			c.idx++
-			if ch, ok := e.Value.(*teonet.Channel); ok {
-				return ch
-			}
-		}
-		i++
+	// Get list value
+	if ch, ok := c.e.Value.(*teonet.Channel); ok {
+		return ch
+
 	}
 
 	return
 }
 
-// existsUnsafe returns true if consumer exists in consumers list
-func (c *consumers) existsUnsafe(ch *teonet.Channel) bool {
-	for e := c.Front(); e != nil; e = e.Next() {
-		if v, ok := e.Value.(*teonet.Channel); ok && v == ch {
-			return true
-		}
+// existsUnsafe returns list.Element if consumer exists in list or nil if not
+func (c *consumers) existsUnsafe(ch *teonet.Channel) (e *list.Element) {
+	e, exists := c.indexMap[ch]
+	if !exists {
+		return nil
 	}
-	return false
+	return
 }
 
 // len returns consumers list length

@@ -137,6 +137,12 @@ func (mq *Consumer) reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event)
 			float64(c.Triptime().Microseconds())/1000.0,
 		)
 
+		// Check consumerHello mwssage from new consumer
+		if len(p.Data()) == len(consumerAnswer) && string(p.Data()) == string(consumerAnswer) {
+			fmt.Printf("connected to broker")
+			return true
+		}
+
 		// Add messages to queue
 		// mq.set(&message{c, p.ID(), p.Data()})
 		// fmt.Printf("added to queue, queue length: %d\n", mq.queue.Len())
