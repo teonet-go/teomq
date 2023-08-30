@@ -7,6 +7,8 @@
 package teomq
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"sync"
 	"time"
@@ -32,6 +34,7 @@ type wait struct {
 	*sync.Cond
 }
 
+// init initialize wait structure
 func (w *wait) init() {
 	w.Mutex = new(sync.Mutex)
 	w.Cond = sync.NewCond(w.Mutex)
@@ -90,6 +93,16 @@ func (co *Consumer) connectToBroker(addr string) (err error) {
 	return
 }
 
+// sendAnswer send answer to message received from broker
+func (co *Consumer) sendAnswer(pac *teonet.Packet, data []byte) (err error) {
+	data, err = ConsumerPacket{uint32(pac.ID()), data}.MarshalBinary()
+	if err != nil {
+		return
+	}
+	_, err = co.SendTo(pac.From(), data)
+	return
+}
+
 // reader is Consumer teonet channel reader connected to brokers peer
 // and process incoming teonet messages
 func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) bool {
@@ -130,11 +143,44 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event)
 		// Send answer
 		// TODO: this answer should processed on application level
 		answer := []byte("Teonet answer to " + string(p.Data()))
-		c.Send(answer)
+		co.sendAnswer(p, answer)
 
 	}
 
 	return true
+}
+
+// ConsumerPacket defines consumer answer message
+type ConsumerPacket struct {
+	id   uint32
+	data []byte
+}
+
+// MarshalBinary marshals consumer binary packet
+func (p ConsumerPacket) MarshalBinary() (data []byte, err error) {
+	buf := new(bytes.Buffer)
+
+	binary.Write(buf, binary.LittleEndian, p.id)
+	binary.Write(buf, binary.LittleEndian, p.data)
+
+	data = buf.Bytes()
+	return
+}
+
+// UnmarshalBinary unmarshals consumer binary packet
+func (p *ConsumerPacket) UnmarshalBinary(data []byte) (err error) {
+	var buf = bytes.NewBuffer(data)
+
+	if err = binary.Read(buf, binary.LittleEndian, &p.id); err != nil {
+		return
+	}
+	d := make([]byte, buf.Len())
+	if err = binary.Read(buf, binary.LittleEndian, d); err != nil {
+		return
+	}
+	p.data = d
+
+	return
 }
 
 // reader is main teonet application reader for Broker object, it receive
@@ -179,14 +225,22 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) b
 			return true
 		}
 
+		// Got answer from consumer
 		if br.consumers.existsUnsafe(c) != nil {
-			fmt.Printf("got '%s' from consumer %s\n", p.Data(), c)
+
+			ans := ConsumerPacket{}
+			if err := ans.UnmarshalBinary(p.Data()); err != nil {
+				fmt.Printf("%s\n", err)
+				return true
+			}
+
+			fmt.Printf("got '%s' from consumer %s\n", ans.data, c)
 			if producer := br.answers.get(answersData{c.Address(), 0}); producer != nil {
-				if _, err := br.SendTo(producer.addr, p.Data()); err != nil {
+				if _, err := br.SendTo(producer.addr, ans.data); err != nil {
 					fmt.Printf("send answer err: %s\n", err)
 					return true
 				}
-				fmt.Printf("send '%s' to producer %s\n", p.Data(), producer.addr)
+				fmt.Printf("send '%s' to producer %s\n", ans.data, producer.addr)
 				return true
 			}
 			fmt.Printf("not found in answer\n")

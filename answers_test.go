@@ -2,19 +2,17 @@ package teomq
 
 import (
 	"testing"
-
-	"github.com/teonet-go/teonet"
 )
 
 func TestAnswers(t *testing.T) {
 
 	// Create producers
-	p1 := new(teonet.Channel)
-	p2 := new(teonet.Channel)
+	p1 := "p-addr-1"
+	p2 := "p-addr-2"
 
 	// Create consumers
-	c1 := new(teonet.Channel)
-	c2 := new(teonet.Channel)
+	c1 := "c-addr-1"
+	c2 := "c-addr-2"
 
 	// create answers map
 	answers := newAnswers()
@@ -29,7 +27,7 @@ func TestAnswers(t *testing.T) {
 		t.Error("produser p1 not found")
 		return
 	}
-	if p.ch != p1 || p.id != 11 {
+	if p.addr != p1 || p.id != 11 {
 		t.Error("wrong produser p1")
 		return
 	}
@@ -39,7 +37,7 @@ func TestAnswers(t *testing.T) {
 		t.Error("produser p2 not found")
 		return
 	}
-	if p.ch != p2 || p.id != 11 {
+	if p.addr != p2 || p.id != 11 {
 		t.Error("wrong produser p2")
 		return
 	}
