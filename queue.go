@@ -10,8 +10,6 @@ package teomq
 import (
 	"container/list"
 	"sync"
-
-	"github.com/teonet-go/teonet"
 )
 
 // queue contain messages queue data and methods to process it.
@@ -22,7 +20,7 @@ type queue struct {
 
 // message is the messageQueue data type.
 type message struct {
-	ch   *teonet.Channel
+	from string
 	id   int
 	data []byte
 }

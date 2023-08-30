@@ -181,12 +181,12 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) b
 
 		if br.consumers.existsUnsafe(c) != nil {
 			fmt.Printf("got '%s' from consumer %s\n", p.Data(), c)
-			if producer := br.answers.get(answersData{c, 0}); producer != nil {
-				if _, err := producer.ch.Send(p.Data()); err != nil {
+			if producer := br.answers.get(answersData{c.Address(), 0}); producer != nil {
+				if _, err := br.SendTo(producer.addr, p.Data()); err != nil {
 					fmt.Printf("send answer err: %s\n", err)
 					return true
 				}
-				fmt.Printf("send '%s' to producer %s\n", p.Data(), producer.ch)
+				fmt.Printf("send '%s' to producer %s\n", p.Data(), producer.addr)
 				return true
 			}
 			fmt.Printf("not found in answer\n")
@@ -194,7 +194,7 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) b
 		}
 
 		// Add messages to queue
-		br.set(&message{c, p.ID(), p.Data()})
+		br.set(&message{c.Address(), p.ID(), p.Data()})
 		fmt.Printf("message from producer %s added to queue, queue length: %d\n",
 			c, br.queue.Len())
 		br.wakeup()
@@ -229,7 +229,7 @@ func (br *Broker) process() {
 
 		// Send message to consumer and save it to answers map
 		ch.Send(msg.data)
-		br.answers.add(answersData{msg.ch, 0}, answersData{ch, 0})
+		br.answers.add(answersData{msg.from, 0}, answersData{ch.Address(), 0})
 
 		fmt.Printf("send '%s' to consumer %s\n", msg.data, ch)
 	}

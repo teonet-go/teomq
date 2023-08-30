@@ -9,8 +9,6 @@ package teomq
 
 import (
 	"sync"
-
-	"github.com/teonet-go/teonet"
 )
 
 // answers contain messages answers data and methods to process it.
@@ -20,8 +18,8 @@ type answers struct {
 }
 type answersMap map[answersData]answersData
 type answersData struct {
-	ch *teonet.Channel // message channel
-	id int             // message id
+	addr string // message channel
+	id   int    // message id
 }
 
 // newAnswers creates a new answers object.
