@@ -235,7 +235,7 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) b
 			}
 
 			fmt.Printf("got '%s' from consumer %s\n", ans.data, c)
-			if producer := br.answers.get(answersData{c.Address(), 0}); producer != nil {
+			if producer := br.answers.get(answersData{c.Address(), int(ans.id)}); producer != nil {
 				if _, err := br.SendTo(producer.addr, ans.data); err != nil {
 					fmt.Printf("send answer err: %s\n", err)
 					return true
@@ -282,9 +282,12 @@ func (br *Broker) process() {
 		ch := br.consumers.get()
 
 		// Send message to consumer and save it to answers map
-		ch.Send(msg.data)
-		br.answers.add(answersData{msg.from, 0}, answersData{ch.Address(), 0})
-
+		id, err := ch.Send(msg.data)
+		if err != nil {
+			fmt.Printf("can't send message to consumer, error: %s\n", err)
+			continue
+		}
+		br.answers.add(answersData{msg.from, msg.id}, answersData{ch.Address(), id})
 		fmt.Printf("send '%s' to consumer %s\n", msg.data, ch)
 	}
 }
