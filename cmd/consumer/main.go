@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
+	"log"
 
 	"github.com/teonet-go/teomq"
 	"github.com/teonet-go/teonet"
@@ -17,16 +19,23 @@ const (
 )
 
 var name = flag.String("name", "", "application short name")
+var nomsg = flag.Bool("nomsg", false, "don't show log messages")
 
 func main() {
 
 	// Teonet application logo
 	teonet.Logo(appName, appVersion)
 
+	// Parse application flags
 	flag.Parse()
 	short := appShort
 	if len(*name) > 0 {
 		short = *name
+	}
+
+	// Don't show log messages
+	if *nomsg {
+		log.SetOutput(io.Discard)
 	}
 
 	// Create and start new Teonet messages consumer

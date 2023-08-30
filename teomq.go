@@ -9,7 +9,7 @@ package teomq
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -45,6 +45,11 @@ type Consumer struct {
 	*teonet.Teonet
 }
 
+// Producer is Teonet messages queue producers type.
+type Producer struct {
+	*teonet.Teonet
+}
+
 // NewBroker creates a new Teonet MQueue Broker object.
 func NewBroker(appShort string, attr ...interface{}) (br *Broker, err error) {
 	br = new(Broker)
@@ -64,7 +69,18 @@ func NewConsumer(appShort, broker string, attr ...interface{}) (co *Consumer, er
 	if err != nil {
 		return
 	}
-	co.connectToBroker(broker)
+	connectToBroker(co.Teonet, broker)
+	return
+}
+
+// NewProducer creates a new Teonet MQueue Producer object.
+func NewProducer(appShort, broker string, attr ...interface{}) (pr *Producer, err error) {
+	pr = new(Producer)
+	pr.Teonet, err = newTeonet(appShort, attr...) // append(attr, pr.reader)...)
+	if err != nil {
+		return
+	}
+	connectToBroker(pr.Teonet, broker)
 	return
 }
 
@@ -85,9 +101,9 @@ func newTeonet(appShort string, attr ...interface{}) (teo *teonet.Teonet, err er
 	return
 }
 
-// connectToBroker connects consumer to brokers peer
-func (co *Consumer) connectToBroker(addr string) (err error) {
-	if err = co.ConnectTo(addr); err != nil {
+// connectToBroker connects producer or consumer to brokers peer
+func connectToBroker(teo *teonet.Teonet, addr string) (err error) {
+	if err = teo.ConnectTo(addr); err != nil {
 		return
 	}
 	return
@@ -103,19 +119,19 @@ func (co *Consumer) sendAnswer(pac *teonet.Packet, data []byte) (err error) {
 	return
 }
 
-// reader is Consumer teonet channel reader connected to brokers peer
+// reader is Consumer teonet main reader connected to brokers peer
 // and process incoming teonet messages
 func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) bool {
 
 	// On connected
 	if e.Event == teonet.EventConnected {
-		fmt.Printf("connected to %s\n", c)
+		log.Printf("connected to %s\n", c)
 		c.Send(consumerHello)
 		return false
 	}
 
 	if e.Event == teonet.EventDisconnected {
-		fmt.Printf("disconnected from %s\n", c)
+		log.Printf("disconnected from %s\n", c)
 		return false
 	}
 
@@ -128,14 +144,14 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event)
 	if c.ClientMode() {
 
 		// Print received message
-		fmt.Printf("got from %s, \"%s\", len: %d, id: %d, tt: %6.3fms\n",
+		log.Printf("got from %s, \"%s\", len: %d, id: %d, tt: %6.3fms\n",
 			c, p.Data(), len(p.Data()), p.ID(),
 			float64(c.Triptime().Microseconds())/1000.0,
 		)
 
 		// Check consumerHello message from new consumer
 		if len(p.Data()) == len(consumerAnswer) && string(p.Data()) == string(consumerAnswer) {
-			fmt.Printf("connected to broker\n")
+			log.Printf("connected to broker\n")
 			// c.Channel()
 			return true
 		}
@@ -190,7 +206,7 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) b
 	// Check channel disconnected
 	if e.Event == teonet.EventDisconnected {
 		if err := br.consumers.del(c); err == nil {
-			fmt.Printf("consumer removed %s\n", c)
+			log.Printf("consumer removed %s\n", c)
 		}
 		return false
 	}
@@ -204,7 +220,7 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) b
 	if c.ServerMode() {
 
 		// Print received message
-		// fmt.Printf("got from %s, \"%s\", len: %d, id: %d, tt: %6.3fms\n",
+		// log.Printf("got from %s, \"%s\", len: %d, id: %d, tt: %6.3fms\n",
 		// 	c, p.Data(), len(p.Data()), p.ID(),
 		// 	float64(c.Triptime().Microseconds())/1000.0,
 		// )
@@ -213,7 +229,7 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) b
 		if len(p.Data()) == len(consumerHello) && string(p.Data()) == string(consumerHello) {
 
 			// Add to consumers list
-			fmt.Printf("consumer added %s\n", c)
+			log.Printf("consumer added %s\n", c)
 			br.consumers.add(c)
 
 			// Send answer
@@ -230,26 +246,26 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) b
 
 			ans := ConsumerPacket{}
 			if err := ans.UnmarshalBinary(p.Data()); err != nil {
-				fmt.Printf("%s\n", err)
+				log.Printf("%s\n", err)
 				return true
 			}
 
-			fmt.Printf("got '%s' from consumer %s\n", ans.data, c)
+			log.Printf("got '%s' from consumer %s\n", ans.data, c)
 			if producer := br.answers.get(answersData{c.Address(), int(ans.id)}); producer != nil {
 				if _, err := br.SendTo(producer.addr, ans.data); err != nil {
-					fmt.Printf("send answer err: %s\n", err)
+					log.Printf("send answer err: %s\n", err)
 					return true
 				}
-				fmt.Printf("send '%s' to producer %s\n", ans.data, producer.addr)
+				log.Printf("send '%s' to producer %s\n", ans.data, producer.addr)
 				return true
 			}
-			fmt.Printf("not found in answer\n")
+			log.Printf("not found in answer\n")
 			return true
 		}
 
 		// Add messages to queue
 		br.set(&message{c.Address(), p.ID(), p.Data()})
-		fmt.Printf("message from producer %s added to queue, queue length: %d\n",
+		log.Printf("message from producer %s added to queue, queue length: %d\n",
 			c, br.queue.Len())
 		br.wakeup()
 	}
@@ -275,7 +291,7 @@ func (br *Broker) process() {
 			continue
 		}
 
-		fmt.Printf("process message\n")
+		log.Printf("process message\n")
 
 		// Get producers message and consumers channel
 		msg := br.queue.get()
@@ -284,10 +300,10 @@ func (br *Broker) process() {
 		// Send message to consumer and save it to answers map
 		id, err := ch.Send(msg.data)
 		if err != nil {
-			fmt.Printf("can't send message to consumer, error: %s\n", err)
+			log.Printf("can't send message to consumer, error: %s\n", err)
 			continue
 		}
 		br.answers.add(answersData{msg.from, msg.id}, answersData{ch.Address(), id})
-		fmt.Printf("send '%s' to consumer %s\n", msg.data, ch)
+		log.Printf("send '%s' to consumer %s\n", msg.data, ch)
 	}
 }
