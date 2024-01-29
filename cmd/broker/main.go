@@ -32,7 +32,7 @@ func main() {
 	}
 
 	// Create and start new Teonet messages broker
-	teo, err := teomq.NewBroker(appShort, teonet.Stat(true))
+	teo, err := teomq.NewBroker(appShort/* , teonet.Stat(true) */)
 	if err != nil {
 		panic("can't connect to Teonet, error: " + err.Error())
 	}

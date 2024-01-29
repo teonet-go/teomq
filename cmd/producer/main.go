@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"time"
 
 	"github.com/teonet-go/teomq"
@@ -15,13 +16,7 @@ const (
 	appName    = "Teonet messages producer sample application"
 	appShort   = "teomqproducer"
 	appVersion = "0.0.1"
-
-	broker = "og71X6Y8Z44xuTU1Y2W4G9GkUsKmxnvvd9r"
 )
-
-var name = flag.String("name", "", "application short name")
-var delay = flag.Int("delay", 1000000, "send delay in microsecond")
-var nomsg = flag.Bool("nomsg", false, "don't show log messages")
 
 func main() {
 
@@ -29,7 +24,19 @@ func main() {
 	teonet.Logo(appName, appVersion)
 
 	// Parse application flags
+	var name = flag.String("name", "", "application short name")
+	var delay = flag.Int("delay", 1000000, "send delay in microsecond")
+	var nomsg = flag.Bool("nomsg", false, "don't show log messages")
+	var broker = flag.String("broker", "", "broker address")
 	flag.Parse()
+
+	// Check requered parameter -broker
+	if len(*broker) == 0 {
+		fmt.Println("The broker address should be set. Use -broker flag to set it.")
+		os.Exit(0)
+	}
+
+	// Set app short name
 	short := appShort
 	if len(*name) > 0 {
 		short = *name
@@ -41,7 +48,7 @@ func main() {
 	}
 
 	// Create and start new Teonet messages producer
-	teo, err := teomq.NewProducer(short, broker, reader, teonet.Stat(true))
+	teo, err := teomq.NewProducer(short, *broker, reader)
 	if err != nil {
 		panic("can't connect to Teonet, error: " + err.Error())
 	}
@@ -54,7 +61,7 @@ func main() {
 	for i := 1; ; i++ {
 		data := []byte(fmt.Sprintf("Hello wold #%d!", i))
 
-		_, err := teo.SendTo(broker, data)
+		_, err := teo.SendTo(*broker, data)
 		if err != nil {
 			fmt.Printf("send to error: %s\n", err)
 			time.Sleep(1 * time.Second)

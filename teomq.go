@@ -9,7 +9,10 @@ package teomq
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"log"
+	"os"
+	"os/signal"
 	"sync"
 	"time"
 
@@ -97,6 +100,16 @@ func newTeonet(appShort string, attr ...interface{}) (teo *teonet.Teonet, err er
 	for teo.Connect() != nil {
 		time.Sleep(1 * time.Second)
 	}
+
+	// Process Ctrl+C signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	go func() {
+		<-quit
+		fmt.Println("\nCtrl+C signal received. Exiting...")
+		teo.Close()
+		os.Exit(0)
+	}()
 
 	return
 }
