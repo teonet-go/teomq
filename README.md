@@ -8,6 +8,8 @@ The Teonet messages queue contains three basic parts:
 - Teonet messages consumer
 - Teonet messages producer
 
+![Basic mq scheme](img/Basic-mq.drawio.png)
+
 The Teonet messages broker is responsible for sending and receiving messages
 from the Teonet network. It wait connections from message consumers and messages
 producers.
