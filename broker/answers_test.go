@@ -1,4 +1,4 @@
-package teomq
+package broker
 
 import (
 	"testing"

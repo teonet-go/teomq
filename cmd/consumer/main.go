@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/teonet-go/teomq"
+	"github.com/teonet-go/teomq/consumer"
 	"github.com/teonet-go/teonet"
 )
 
@@ -26,6 +26,7 @@ func main() {
 	var name = flag.String("name", "", "application short name")
 	var nomsg = flag.Bool("nomsg", false, "don't show log messages")
 	var broker = flag.String("broker", "", "broker address")
+	var stat = flag.Bool("stat", false, "show statistics")
 	flag.Parse()
 
 	// Check requered parameter -broker
@@ -45,8 +46,14 @@ func main() {
 		log.SetOutput(io.Discard)
 	}
 
+	// Set teonet application attributes
+	attr := []any{}
+	if *stat {
+		attr = append(attr, teonet.Stat(true))
+	}
+
 	// Create and start new Teonet messages consumer
-	teo, err := teomq.NewConsumer(short, *broker)
+	teo, err := consumer.New(short, *broker, attr...)
 	if err != nil {
 		panic("can't connect to Teonet, error: " + err.Error())
 	}

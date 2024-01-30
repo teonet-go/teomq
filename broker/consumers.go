@@ -1,11 +1,11 @@
-// Copyright 2023 Kirill Scherba <kirill@scherba.ru>. All rights reserved.
+// Copyright 2023-24 Kirill Scherba <kirill@scherba.ru>. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // Teonet messages queue. Consumers list module provides consumers list types
 // and methods.
 
-package teomq
+package broker
 
 import (
 	"container/list"
@@ -25,7 +25,7 @@ type consumers struct {
 	list.List                   // list of consumers
 	indexMap                    // map of messages IDs
 	*sync.RWMutex               // mutext
-	e             *list.Element // current list rlement used in get function
+	e             *list.Element // current list element used in get function
 }
 type indexMap map[*teonet.Channel]*list.Element
 
@@ -71,7 +71,7 @@ func (c *consumers) del(ch *teonet.Channel) error {
 	return ErrConsumerNotFound
 }
 
-// get gets next consumer from consumers list
+// get gets next consumer from consumers list.
 func (c *consumers) get() (ch *teonet.Channel) {
 	c.Lock()
 	defer c.Unlock()
@@ -96,13 +96,12 @@ func (c *consumers) get() (ch *teonet.Channel) {
 	// Get list value
 	if ch, ok := c.e.Value.(*teonet.Channel); ok {
 		return ch
-
 	}
 
 	return
 }
 
-// existsUnsafe returns list.Element if consumer exists in list or nil if not
+// existsUnsafe returns list.Element if consumer exists in list or nil if not.
 func (c *consumers) existsUnsafe(ch *teonet.Channel) (e *list.Element) {
 	e, exists := c.indexMap[ch]
 	if !exists {
@@ -111,7 +110,7 @@ func (c *consumers) existsUnsafe(ch *teonet.Channel) (e *list.Element) {
 	return
 }
 
-// len returns consumers list length
+// len returns consumers list length.
 func (c *consumers) len() int {
 	c.RLock()
 	defer c.RUnlock()

@@ -1,11 +1,11 @@
-// Copyright 2023 Kirill Scherba <kirill@scherba.ru>. All rights reserved.
+// Copyright 2023-24 Kirill Scherba <kirill@scherba.ru>. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // Teonet messages queue. Messages queue module provides messages queue types
 // and methods.
 
-package teomq
+package broker
 
 import (
 	"container/list"

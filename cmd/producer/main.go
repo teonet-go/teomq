@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/teonet-go/teomq"
+	"github.com/teonet-go/teomq/producer"
 	"github.com/teonet-go/teonet"
 )
 
@@ -28,6 +28,7 @@ func main() {
 	var delay = flag.Int("delay", 1000000, "send delay in microsecond")
 	var nomsg = flag.Bool("nomsg", false, "don't show log messages")
 	var broker = flag.String("broker", "", "broker address")
+	var stat = flag.Bool("stat", false, "show statistics")
 	flag.Parse()
 
 	// Check requered parameter -broker
@@ -47,8 +48,15 @@ func main() {
 		log.SetOutput(io.Discard)
 	}
 
+	// Set teonet application attributes
+	attr := []any{}
+	if *stat {
+		attr = append(attr, teonet.Stat(true))
+	}
+	attr = append(attr, reader)
+
 	// Create and start new Teonet messages producer
-	teo, err := teomq.NewProducer(short, *broker, reader)
+	teo, err := producer.New(short, *broker, attr...)
 	if err != nil {
 		panic("can't connect to Teonet, error: " + err.Error())
 	}

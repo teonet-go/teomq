@@ -6,7 +6,7 @@ import (
 	"io"
 	"log"
 
-	"github.com/teonet-go/teomq"
+	"github.com/teonet-go/teomq/broker"
 	"github.com/teonet-go/teonet"
 )
 
@@ -16,14 +16,14 @@ const (
 	appVersion = "0.0.1"
 )
 
-var nomsg = flag.Bool("nomsg", false, "don't show log messages")
-
 func main() {
 
 	// Teonet application logo
 	teonet.Logo(appName, appVersion)
 
 	// Parse application flags
+	var nomsg = flag.Bool("nomsg", false, "don't show log messages")
+	var stat = flag.Bool("stat", false, "show statistics")
 	flag.Parse()
 
 	// Don't show log messages
@@ -31,8 +31,14 @@ func main() {
 		log.SetOutput(io.Discard)
 	}
 
+	// Set teonet application attributes
+	attr := []any{}
+	if *stat {
+		attr = append(attr, teonet.Stat(true))
+	}
+
 	// Create and start new Teonet messages broker
-	teo, err := teomq.NewBroker(appShort/* , teonet.Stat(true) */)
+	teo, err := broker.New(appShort, attr...)
 	if err != nil {
 		panic("can't connect to Teonet, error: " + err.Error())
 	}
