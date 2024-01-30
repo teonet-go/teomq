@@ -2,6 +2,8 @@
 
 The Teonet messages queue is a part of the Teonet network.
 
+A message queue is a form of asynchronous service-to-service communication used in serverless and microservices architectures. Messages are stored on the queue until they are processed and deleted. Each message is processed only once, by a single consumer. Message queues can be used to decouple heavyweight processing, to buffer or batch work, and to smooth spiky workloads.
+
 ## Basic teomq scheme
 
 The Teonet messages queue contains three basic parts:
@@ -31,6 +33,8 @@ The message Consumer process the message and send answer to Broker. The Broker
 remove message from queue and resend answer to Producer.
 
 The is one Broker and several Consumers and Producers.
+
+Many producers and consumers can use the Brokers queue, but each message is processed only once, by a single consumer. For this reason, this messaging pattern is often called one-to-one, or point-to-point, communications.
 
 ### Basic teomq exsample
 
