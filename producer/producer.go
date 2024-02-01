@@ -12,17 +12,32 @@ import (
 
 // Producer is Teonet messages queue producers type.
 type Producer struct {
+	broker string
 	*teonet.Teonet
+	*Messages
 }
 
 // New creates a new Teonet Message Queue Producer object.
-func New(appShort, broker string, attr ...interface{}) (pr *Producer, err error) {
-	pr = new(Producer)
-	pr.Teonet, err = teomq.NewTeonet(appShort, attr...)
+func New(appShort, broker string, attr ...interface{}) (p *Producer, err error) {
+	p = new(Producer)
+	p.broker = broker
+	p.Teonet, err = teomq.NewTeonet(appShort, attr...)
 	if err != nil {
 		return
 	}
-	teomq.ConnectToBroker(pr.Teonet, broker)
+	p.Messages = NewMessages()
+	teomq.ConnectToBroker(p.Teonet, broker)
+	return
+}
+
+// Send sends message to broker.
+func (p *Producer) Send(data []byte) (id int, err error) {
+	id, err = p.SendTo(p.broker, data)
+	if err != nil {
+		return
+	}
+
+	p.Messages.add(id, data)
 	return
 }
 
