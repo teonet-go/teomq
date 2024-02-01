@@ -90,28 +90,34 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet,
 		}
 
 		// Got answer from consumer
-		if br.consumers.existsUnsafe(c) != nil {
+		if br.consumers.exists(c) {
 
+			// Unmarshal packet data to answer
 			ans := consumer.Packet{}
 			if err := ans.UnmarshalBinary(p.Data()); err != nil {
 				log.Printf("%s\n", err)
 				return true
 			}
 
+			// Check answer from consumer in wait answer list
 			log.Printf("got '%s' from consumer %s\n", ans.Data(), c)
-			if p := br.answers.get(answersData{c.Address(), int(ans.ID())}); p != nil {
-				if _, err := br.SendTo(p.addr, ans.Data()); err != nil {
-					log.Printf("send answer err: %s\n", err)
-					return true
-				}
-				log.Printf("send '%s' to producer %s\n", ans.Data(), p.addr)
+			p, err := br.answers.get(answersData{c.Address(), ans.ID()})
+			if err != nil {
+				log.Printf("not found in answer\n")
 				return true
 			}
-			log.Printf("not found in answer\n")
+
+			// Send answer to producer
+			if _, err := br.SendTo(p.addr, ans.Data()); err != nil {
+				log.Printf("send answer err: %s\n", err)
+				return true
+			}
+			log.Printf("send '%s' to producer %s\n", ans.Data(), p.addr)
+
 			return true
 		}
 
-		// Add messages to queue
+		// Add messages from produsers to queue
 		br.set(&message{c.Address(), p.ID(), p.Data()})
 		log.Printf("message from producer %s added to queue, queue length: %d\n",
 			c, br.queue.Len())
@@ -140,11 +146,19 @@ func (br *Broker) process() {
 			continue
 		}
 
-		log.Printf("process message\n")
+		// Get consumers channel
+		ch, err := br.consumers.get()
+		if err != nil {
+			continue
+		}
 
-		// Get producers message and consumers channel
-		msg := br.queue.get()
-		ch := br.consumers.get()
+		// Get producers message
+		msg, err := br.queue.get()
+		if err != nil {
+			continue
+		}
+
+		log.Printf("process queue message from %s\n", ch)
 
 		// Send message to consumer and save it to answers map
 		id, err := ch.Send(msg.data)

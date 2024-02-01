@@ -34,8 +34,8 @@ func TestConsumers(t *testing.T) {
 
 	// Get consumers from list
 	for i := 0; i < numOfConsumers; i++ {
-		ch := consumers.get()
-		if ch == nil {
+		ch, err := consumers.get()
+		if err != nil {
 			t.Errorf("can't get %d consumer", i+1)
 			return
 		}
@@ -59,7 +59,7 @@ func TestConsumers(t *testing.T) {
 	}
 
 	// Get should return c2 channel
-	if ch := consumers.get(); ch != c2 {
+	if ch, _ := consumers.get(); ch != c2 {
 		t.Errorf("get return wrong channel %p", ch)
 		return
 	}
@@ -71,7 +71,7 @@ func TestConsumers(t *testing.T) {
 	}
 
 	// Get should return nil
-	if ch := consumers.get(); ch != nil {
+	if ch, err := consumers.get(); err == nil && ch != nil {
 		t.Errorf("get return wrong channel %p", ch)
 		return
 	}

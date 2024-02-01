@@ -50,6 +50,7 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 		return false
 	}
 
+	// On disconnected
 	if e.Event == teonet.EventDisconnected {
 		log.Printf("disconnected from %s\n", c)
 		return false

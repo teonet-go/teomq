@@ -22,9 +22,9 @@ func TestAnswers(t *testing.T) {
 	answers.add(answersData{p2, 11}, answersData{c2, 21})
 
 	// Get from answers and check
-	p := answers.get(answersData{c1, 21})
-	if p == nil {
-		t.Error("produser p1 not found")
+	p, err := answers.get(answersData{c1, 21})
+	if err != nil {
+		t.Error("produser p1 not found:", err)
 		return
 	}
 	if p.addr != p1 || p.id != 11 {
@@ -32,8 +32,8 @@ func TestAnswers(t *testing.T) {
 		return
 	}
 
-	p = answers.get(answersData{c2, 21})
-	if p == nil {
+	p, err = answers.get(answersData{c2, 21})
+	if err != nil {
 		t.Error("produser p2 not found")
 		return
 	}

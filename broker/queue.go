@@ -9,8 +9,11 @@ package broker
 
 import (
 	"container/list"
+	"errors"
 	"sync"
 )
+
+var ErrMessageNotFound = errors.New("message not found")
 
 // queue contain messages queue data and methods to process it.
 type queue struct {
@@ -39,31 +42,33 @@ func (q *queue) set(messages *message) {
 	q.PushBack(messages)
 }
 
-// get returns first element from queue and remove it, or returns nil if the
-// queue is empty.
-func (q *queue) get() (messages *message) {
+// get returns first element from queue and remove it, or returns nil and error
+// if the queue is empty.
+func (q *queue) get() (*message, error) {
 	q.Lock()
 	defer q.Unlock()
 
 	// Get first element of messages queue
 	e := q.Front()
 	if e == nil {
-		return nil
+		return nil, ErrMessageNotFound
 	}
 
 	// Get message from element
-	messages, ok := e.Value.(*message)
+	m, ok := e.Value.(*message)
 	if !ok {
-		return nil
+		return nil, ErrMessageNotFound
 	}
 
 	// Remove element from messages queue
 	q.Remove(e)
 
-	return
+	return m, nil
 }
 
 // len returns number of elements in queue
 func (q *queue) len() int {
+	q.RLock()
+	defer q.RUnlock()
 	return q.Len()
 }

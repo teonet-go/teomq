@@ -23,7 +23,7 @@ var (
 // queue contain messages queue data and methods to process it.
 type consumers struct {
 	list.List                   // list of consumers
-	indexMap                    // map of messages IDs
+	indexMap                    // map of list elements by consumer channel
 	*sync.RWMutex               // mutext
 	e             *list.Element // current list element used in get function
 }
@@ -72,13 +72,13 @@ func (c *consumers) del(ch *teonet.Channel) error {
 }
 
 // get gets next consumer from consumers list.
-func (c *consumers) get() (ch *teonet.Channel) {
+func (c *consumers) get() (*teonet.Channel, error) {
 	c.Lock()
 	defer c.Unlock()
 
 	// Check length of consumer
 	if c.Len() == 0 {
-		return
+		return nil, ErrConsumerNotFound
 	}
 
 	// Get current element from list
@@ -90,15 +90,22 @@ func (c *consumers) get() (ch *teonet.Channel) {
 	// TODO: perhaps this condition is not needed here, because we first check
 	// the length of the list and the element of the list must be found.
 	if c.e == nil {
-		return
+		return nil, ErrConsumerNotFound
 	}
 
 	// Get list value
 	if ch, ok := c.e.Value.(*teonet.Channel); ok {
-		return ch
+		return ch, nil
 	}
 
-	return
+	return nil, ErrConsumerNotFound
+}
+
+// exists returns true if consumer exists in list or false if not.
+func (c *consumers) exists(ch *teonet.Channel) bool {
+	c.RLock()
+	defer c.RUnlock()
+	return c.existsUnsafe(ch) != nil
 }
 
 // existsUnsafe returns list.Element if consumer exists in list or nil if not.

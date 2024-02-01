@@ -18,8 +18,8 @@ type Packet struct {
 }
 
 // ID returns consumer message ID.
-func (p Packet) ID() uint32 {
-	return p.id
+func (p Packet) ID() int {
+	return int(p.id)
 }
 
 // Data returns consumer message data.

@@ -22,6 +22,9 @@ func main() {
 	// Teonet application logo
 	teonet.Logo(appName, appVersion)
 
+	// Log in microseconds
+	log.SetFlags(log.Flags() | log.Lmicroseconds)
+
 	// Parse application flags
 	var name = flag.String("name", "", "application short name")
 	var nomsg = flag.Bool("nomsg", false, "don't show log messages")

@@ -23,6 +23,9 @@ func main() {
 	// Teonet application logo
 	teonet.Logo(appName, appVersion)
 
+	// Log in microseconds
+	log.SetFlags(log.Flags() | log.Lmicroseconds)
+
 	// Parse application flags
 	var name = flag.String("name", "", "application short name")
 	var delay = flag.Int("delay", 1000000, "send delay in microsecond")
@@ -77,16 +80,23 @@ func main() {
 		}
 		log.Printf("send message: %s\n", string(data))
 
-		// This application use reader function to receive message. The code
-		// below shows how to get messages after send.
+		// This application use common reader function to receive all messages
+		// (all answers from broker). The code below shows how to get answer
+		// after send. In this code we check that all answers was received
+		// during timeout. The timeout is 5 seconds.
 		//
-		// data, err = teo.WaitFrom(broker)
-		// if err != nil {
-		// 	fmt.Printf("wait from error: %s\n", err)
-		// 	continue
-		// }
-		// fmt.Printf("got answer: %s\n", string(data))
-		//
+		// go func(id int, msg []byte) {
+		// 	data, err = teo.WaitFrom(*broker /* , uint32(id) */ /* , 5*time.Second */)
+
+		// 	if err != nil {
+		// 		fmt.Printf(
+		// 			"no reply to sent message %s with id %d, error: %s\n",
+		// 			msg, id, err,
+		// 		)
+		// 		return
+		// 	}
+		// 	fmt.Printf("!!! got answer: %s\n", string(data))
+		// }(id, data)
 
 		time.Sleep(time.Microsecond * time.Duration(*delay))
 	}
@@ -118,7 +128,7 @@ func reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) bool {
 	if c.ClientMode() {
 
 		// Print received message
-		log.Printf("got answer: %s\n", string(p.Data()))
+		log.Printf("got answer id %d, message: %s\n", p.ID(), p.Data())
 	}
 
 	return false

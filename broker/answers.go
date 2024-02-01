@@ -8,8 +8,11 @@
 package broker
 
 import (
+	"errors"
 	"sync"
 )
+
+var ErrAnswerNotFound = errors.New("answer not found")
 
 // answers contain messages answers data and methods to process it.
 type answers struct {
@@ -37,20 +40,19 @@ func (a *answers) add(producer, consumer answersData) {
 	a.answersMap[consumer] = producer
 }
 
-// get returns producer by consumer and delete it if found or returns nil if
-// not found.
-func (a *answers) get(consumer answersData) (producer *answersData) {
+// get returns producers answerData by consumers answerData and delete it if
+// found or returns error ErrAnswerNotFound if not found.
+func (a *answers) get(consumer answersData) (*answersData, error) {
 	a.Lock()
 	defer a.Unlock()
 
 	p, ok := a.answersMap[consumer]
 	if !ok {
-		return nil
+		return nil, ErrAnswerNotFound
 	}
-	producer = &p
 
 	delete(a.answersMap, consumer)
-	return
+	return &p, nil
 }
 
 // len return length of the answers map
