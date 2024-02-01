@@ -2,32 +2,37 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Teonet messages queue. Consumer packet module.
+// Teonet messages queue. Packet module.
 
-package consumer
+package teomq
 
 import (
 	"bytes"
 	"encoding/binary"
 )
 
-// Packet defines consumer answer message
+// Packet defines answer message
 type Packet struct {
 	id   uint32
 	data []byte
 }
 
-// ID returns consumer message ID.
+// NewPacket creates new packet.
+func NewPacket(id uint32, data []byte) *Packet {
+	return &Packet{id, data}
+}
+
+// ID returns message ID.
 func (p Packet) ID() int {
 	return int(p.id)
 }
 
-// Data returns consumer message data.
+// Data returns message data.
 func (p Packet) Data() []byte {
 	return p.data
 }
 
-// MarshalBinary marshals consumer binary packet
+// MarshalBinary marshals binary packet
 func (p Packet) MarshalBinary() (data []byte, err error) {
 	buf := new(bytes.Buffer)
 
@@ -38,7 +43,7 @@ func (p Packet) MarshalBinary() (data []byte, err error) {
 	return
 }
 
-// UnmarshalBinary unmarshals consumer binary packet
+// UnmarshalBinary unmarshals binary packet
 func (p *Packet) UnmarshalBinary(data []byte) (err error) {
 	var buf = bytes.NewBuffer(data)
 

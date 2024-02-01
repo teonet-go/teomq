@@ -72,13 +72,13 @@ func main() {
 	for i := 1; ; i++ {
 		data := []byte(fmt.Sprintf("Hello wold #%d!", i))
 
-		_, err := teo.SendTo(*broker, data)
+		id, err := teo.SendTo(*broker, data)
 		if err != nil {
 			fmt.Printf("send to error: %s\n", err)
 			time.Sleep(1 * time.Second)
 			continue
 		}
-		log.Printf("send message: %s\n", string(data))
+		log.Printf("send message id %d: %s\n", id, string(data))
 
 		// This application use common reader function to receive all messages
 		// (all answers from broker). The code below shows how to get answer
@@ -127,8 +127,15 @@ func reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) bool {
 	// In client mode get messages and ...
 	if c.ClientMode() {
 
+		// Unmarshal answer
+		ans, err := producer.Answer(p.Data())
+		if err != nil {
+			log.Printf("answer unmarshal error: %s\n", err)
+			return false
+		}
+
 		// Print received message
-		log.Printf("got answer id %d, message: %s\n", p.ID(), p.Data())
+		log.Printf("recv answer  id %d: %s\n", ans.ID(), ans.Data())
 	}
 
 	return false

@@ -30,7 +30,7 @@ func New(appShort, broker string, attr ...interface{}) (co *Consumer, err error)
 
 // sendAnswer send answer to message received from broker
 func (co *Consumer) sendAnswer(pac *teonet.Packet, data []byte) (err error) {
-	data, err = Packet{uint32(pac.ID()), data}.MarshalBinary()
+	data, err = teomq.NewPacket(uint32(pac.ID()), data).MarshalBinary()
 	if err != nil {
 		return
 	}
@@ -80,7 +80,7 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 
 		// Send answer
 		// TODO: this answer should processed on application level
-		answer := []byte("Teonet answer to " + string(p.Data()))
+		answer := []byte("Answer to " + string(p.Data()))
 		co.sendAnswer(p, answer)
 
 	}

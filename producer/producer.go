@@ -15,7 +15,7 @@ type Producer struct {
 	*teonet.Teonet
 }
 
-// New creates a new Teonet MQueue Producer object.
+// New creates a new Teonet Message Queue Producer object.
 func New(appShort, broker string, attr ...interface{}) (pr *Producer, err error) {
 	pr = new(Producer)
 	pr.Teonet, err = teomq.NewTeonet(appShort, attr...)
@@ -23,5 +23,12 @@ func New(appShort, broker string, attr ...interface{}) (pr *Producer, err error)
 		return
 	}
 	teomq.ConnectToBroker(pr.Teonet, broker)
+	return
+}
+
+// Answer unmarshals answer packet from broker.
+func Answer(data []byte) (ans *teomq.Packet, err error) {
+	ans = new(teomq.Packet)
+	err = ans.UnmarshalBinary(data)
 	return
 }

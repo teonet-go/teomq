@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/teonet-go/teomq"
-	"github.com/teonet-go/teomq/consumer"
 	"github.com/teonet-go/teonet"
 )
 
@@ -93,7 +92,7 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet,
 		if br.consumers.exists(c) {
 
 			// Unmarshal packet data to answer
-			ans := consumer.Packet{}
+			ans := &teomq.Packet{}
 			if err := ans.UnmarshalBinary(p.Data()); err != nil {
 				log.Printf("%s\n", err)
 				return true
@@ -107,8 +106,16 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet,
 				return true
 			}
 
+			// Create and marshal produser answer packet
+			ans = teomq.NewPacket(uint32(p.id), ans.Data())
+			data, err := ans.MarshalBinary()
+			if err != nil {
+				log.Printf("%s\n", err)
+				return true
+			}
+
 			// Send answer to producer
-			if _, err := br.SendTo(p.addr, ans.Data()); err != nil {
+			if _, err := br.SendTo(p.addr, data); err != nil {
 				log.Printf("send answer err: %s\n", err)
 				return true
 			}
