@@ -24,21 +24,21 @@ func TestAnswers(t *testing.T) {
 	// Get from answers and check
 	p, err := answers.get(answersData{c1, 21})
 	if err != nil {
-		t.Error("produser p1 not found:", err)
+		t.Error("producer p1 not found:", err)
 		return
 	}
 	if p.addr != p1 || p.id != 11 {
-		t.Error("wrong produser p1")
+		t.Error("wrong producer p1")
 		return
 	}
 
 	p, err = answers.get(answersData{c2, 21})
 	if err != nil {
-		t.Error("produser p2 not found")
+		t.Error("producer p2 not found")
 		return
 	}
 	if p.addr != p2 || p.id != 11 {
-		t.Error("wrong produser p2")
+		t.Error("wrong producer p2")
 		return
 	}
 

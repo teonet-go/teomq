@@ -106,7 +106,7 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet,
 				return true
 			}
 
-			// Create and marshal produser answer packet
+			// Create and marshal producer answer packet
 			ans = teomq.NewPacket(uint32(p.id), ans.Data())
 			data, err := ans.MarshalBinary()
 			if err != nil {
@@ -124,7 +124,7 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet,
 			return true
 		}
 
-		// Add messages from produsers to queue
+		// Add messages from producers to queue
 		br.set(&message{c.Address(), p.ID(), p.Data()})
 		log.Printf("message from producer %s added to queue, queue length: %d\n",
 			c, br.queue.Len())

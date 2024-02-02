@@ -22,9 +22,11 @@ type Messages struct {
 	*sync.RWMutex
 }
 type MessagesData struct {
+	f RecvCallback
 	p *teomq.Packet
 	t time.Time
 }
+type RecvCallback func(id int, data []byte, err error) bool
 
 // NewMessages creates new messages queue.
 func NewMessages() *Messages {
@@ -35,15 +37,17 @@ func NewMessages() *Messages {
 }
 
 // add adds new message to messages queue.
-func (m *Messages) add(id int, data []byte) {
+func (m *Messages) add(id int, data []byte, f RecvCallback,
+	timeout time.Duration) {
+
 	m.Lock()
 	defer m.Unlock()
-	ttl := time.Now().Add(time.Second * 5)
-	m.m[id] = MessagesData{teomq.NewPacket(uint32(id), data), ttl}
+	ttl := time.Now().Add(timeout)
+	m.m[id] = MessagesData{f, teomq.NewPacket(uint32(id), data), ttl}
 }
 
-// Get returns message from messages queue.
-func (m *Messages) Get(id int) (p *teomq.Packet, err error) {
+// get returns message from messages queue.
+func (m *Messages) get(id int) (p *teomq.Packet, f RecvCallback, err error) {
 	m.RLock()
 	defer m.RUnlock()
 
@@ -55,9 +59,24 @@ func (m *Messages) Get(id int) (p *teomq.Packet, err error) {
 	return
 }
 
-// Del deletes message from messages queue.
-func (m *Messages) Del(id int) {
+// del deletes message from messages queue.
+func (m *Messages) del(id int) {
 	m.Lock()
 	defer m.Unlock()
 	delete(m.m, id)
+}
+
+// check returns true if message exists in messages queue and timeout expired.
+func (m *Messages) check() (msg MessagesData, ok bool) {
+	m.RLock()
+	defer m.RUnlock()
+
+	for _, msg = range m.m {
+		if time.Now().After(msg.t) {
+			ok = true
+			return
+		}
+	}
+
+	return
 }

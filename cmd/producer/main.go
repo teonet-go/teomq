@@ -31,7 +31,6 @@ func main() {
 	var delay = flag.Int("delay", 1000000, "send delay in microsecond")
 	var nomsg = flag.Bool("nomsg", false, "don't show log messages")
 	var broker = flag.String("broker", "", "broker address")
-	var common = flag.Bool("common", false, "use common reader")
 	var stat = flag.Bool("stat", false, "show statistics")
 	flag.Parse()
 
@@ -75,8 +74,21 @@ func main() {
 		// Make message to send
 		data := []byte(fmt.Sprintf("Hello wold #%d!", i))
 
+		// Answer callback function
+		answer := func(id int, data []byte, err error) bool {
+			if err != nil {
+				log.Printf(
+					"recv error   id %d, error: %s\n",
+					id, err,
+				)
+				return true
+			}
+			log.Printf("recv answer  id %d: %s\n", id, data)
+			return true
+		}
+
 		// Send message to broker
-		id, err := prod.Send(data)
+		id, err := prod.Send(data, answer)
 		if err != nil {
 			fmt.Printf("send to error: %s\n", err)
 			time.Sleep(1 * time.Second)
@@ -84,49 +96,8 @@ func main() {
 		}
 		log.Printf("send message id %d: %s\n", id, string(data))
 
-		// This application use common reader function to receive all messages
-		// (all answers from broker). The code below shows how to get answer
-		// after send. In this code we check that all answers was received
-		// during timeout. The timeout is 5 seconds.
-		//
-		wait := func(id int, msg []byte) {
-			data, err = prod.WaitFrom(*broker, 25*time.Second)
-			if err != nil {
-				log.Printf(
-					"no response received to sent message id %d, error: %s\n",
-					id, err,
-				)
-				return
-			}
-
-			// Unmarshal answer
-			ans, err := producer.Answer(data)
-			if err != nil {
-				log.Printf("answer unmarshal error: %s\n", err)
-				return
-			}
-
-			// Check answer in Messages queue
-			_, err = prod.Get(ans.ID())
-			if err != nil {
-				log.Printf("!!! answer not found: %s\n", err)
-				return
-			}
-			prod.Del(ans.ID())
-
-			log.Printf("recv answer  id %d: %s\n", ans.ID(), ans.Data())
-		}
-
-		// If *common is false then wait for answer will be used instead of
-		// common reader.
-		if !*common {
-			go wait(id, data)
-		}
-
 		time.Sleep(time.Microsecond * time.Duration(*delay))
 	}
-
-	// select {}
 }
 
 // reader is Producer teonet main reader connected to brokers peer
@@ -149,18 +120,20 @@ func reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) bool {
 		return false
 	}
 
-	// In client mode get messages and ...
+	// In client mode get and process messages
 	if c.ClientMode() {
+		// Some additional incoming messages processing may be done here.
+		// For example:
 
 		// Unmarshal answer
-		ans, err := producer.Answer(p.Data())
-		if err != nil {
-			log.Printf("answer unmarshal error: %s\n", err)
-			return false
-		}
+		// ans, err := producer.Answer(p.Data())
+		// if err != nil {
+		// 	log.Printf("answer unmarshal error: %s\n", err)
+		// 	return false
+		// }
 
 		// Print received message
-		log.Printf("recv answer  id %d: %s\n", ans.ID(), ans.Data())
+		// log.Printf("recv answer  id %d: %s\n", ans.ID(), ans.Data())
 	}
 
 	return false
