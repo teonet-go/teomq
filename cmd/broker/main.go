@@ -13,7 +13,7 @@ import (
 const (
 	appName    = "Teonet messages broker sample application"
 	appShort   = "teomqbroker"
-	appVersion = "0.0.1"
+	appVersion = "0.0.2"
 )
 
 func main() {

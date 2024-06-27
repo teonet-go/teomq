@@ -15,7 +15,7 @@ import (
 const (
 	appName    = "Teonet messages producer sample application"
 	appShort   = "teomqproducer"
-	appVersion = "0.0.1"
+	appVersion = "0.0.2"
 )
 
 func main() {
@@ -56,6 +56,9 @@ func main() {
 	if *stat {
 		attr = append(attr, teonet.Stat(true))
 	}
+
+	// Add custom Reader to process additional info or process messages without
+	// answer callback function
 	attr = append(attr, reader)
 
 	// Create and start new Teonet messages producer
@@ -77,10 +80,7 @@ func main() {
 		// Answer callback function
 		answer := func(id int, data []byte, err error) bool {
 			if err != nil {
-				log.Printf(
-					"recv error   id %d, error: %s\n",
-					id, err,
-				)
+				log.Printf("recv error   id %d, error: %s\n", id, err)
 				return true
 			}
 			log.Printf("recv answer  id %d: %s\n", id, data)
