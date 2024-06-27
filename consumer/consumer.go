@@ -15,16 +15,43 @@ import (
 // Consumer is Teonet messages queue consumer type.
 type Consumer struct {
 	*teonet.Teonet
+	ProcessMessage
 }
 
+type ProcessMessage func(p *teonet.Packet) (answer []byte, err error)
+
 // New creates a new Teonet MQueue Consumer object.
-func New(appShort, broker string, attr ...interface{}) (co *Consumer, err error) {
+//
+// Args:
+//
+//	appShort: teonet application short name
+//	broker: broker address
+//	reader: consumer message processor callback function:
+//	        func(p *teonet.Packet) ([]byte, error)
+//	attr: teonet application attributes
+//
+// Returns:
+//
+//	*Consumer: new Teonet MQueue Consumer object
+//	error: error if occurred
+func New(appShort, broker string, reader ProcessMessage, attr ...interface{}) (co *Consumer, err error) {
+	// Create new consumer object and connect to teonet
 	co = new(Consumer)
-	co.Teonet, err = teomq.NewTeonet(appShort, append(attr, co.reader)...)
+
+	// Append custom Reader to teonet application attributes
+	attr = append(attr, co.reader)
+
+	// Connect to teonet
+	co.Teonet, err = teomq.NewTeonet(appShort, attr...)
 	if err != nil {
 		return
 	}
-	teomq.ConnectToBroker(co.Teonet, broker)
+
+	// Add custom Reader if it exists in attributes
+	co.ProcessMessage = reader
+
+	// Connect to broker
+	err = teomq.ConnectToBroker(co.Teonet, broker)
 	return
 }
 
@@ -65,8 +92,8 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 	if c.ClientMode() {
 
 		// Print received message
-		log.Printf("got from %s, \"%s\", len: %d, id: %d, tt: %6.3fms\n",
-			c, p.Data(), len(p.Data()), p.ID(),
+		log.Printf("got  id %d, len: %d, from %s, tt: %6.3fms\n",
+			p.ID(), len(p.Data()), c,
 			float64(c.Triptime().Microseconds())/1000.0,
 		)
 
@@ -74,16 +101,34 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 		if len(p.Data()) == len(teomq.ConsumerAnswer) &&
 			string(p.Data()) == string(teomq.ConsumerAnswer) {
 			log.Printf("connected to broker\n")
-			// c.Channel()
 			return true
 		}
 
-		// Send answer
-		// TODO: this answer should processed on application level
-		answer := []byte("Answer to " + string(p.Data()))
-		co.sendAnswer(p, answer)
+		// Process message and Send answer
+		go func() {
+			var err error
+			var answer []byte
+			if co.ProcessMessage != nil {
+				answer, err = co.ProcessMessage(p)
+			} else {
+				answer = []byte("Answer to " + string(p.Data()))
+			}
+			if err != nil {
+				log.Printf("process message id %d, from %s, error: %s\n", p.ID(), c, err)
+				return
+			}
 
+			// Send answer
+			err = co.sendAnswer(p, answer)
+			if err != nil {
+				log.Printf("send id %d, len: %d, to %s, error: %s\n", p.ID(), len(answer), c, err)
+			} else {
+				log.Printf("send id %d, len: %d, to %s\n", p.ID(), len(answer), c)
+			}
+		}()
+
+		return true
 	}
 
-	return true
+	return false
 }

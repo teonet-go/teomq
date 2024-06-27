@@ -14,7 +14,7 @@ import (
 const (
 	appName    = "Teonet messages consumer sample application"
 	appShort   = "teomqconsumer"
-	appVersion = "0.0.1"
+	appVersion = "0.0.2"
 )
 
 func main() {
@@ -55,8 +55,13 @@ func main() {
 		attr = append(attr, teonet.Stat(true))
 	}
 
+	// Create messages consumer reader callback function
+	reader := func(p *teonet.Packet) (answer []byte, err error) {
+		return []byte("Answer2 to " + string(p.Data())), nil
+	}
+
 	// Create and start new Teonet messages consumer
-	teo, err := consumer.New(short, *broker, attr...)
+	teo, err := consumer.New(short, *broker, reader, attr...)
 	if err != nil {
 		panic("can't connect to Teonet, error: " + err.Error())
 	}
