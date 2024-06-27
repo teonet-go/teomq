@@ -26,6 +26,8 @@ type MessagesData struct {
 	p *teomq.Packet
 	t time.Time
 }
+
+// RecvCallback is callback function to be called when the message is received.
 type RecvCallback func(id int, data []byte, err error) bool
 
 // NewMessages creates new messages queue.

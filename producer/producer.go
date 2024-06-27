@@ -35,17 +35,36 @@ func New(appShort, broker string, attr ...interface{}) (p *Producer, err error) 
 }
 
 // Send sends message to broker.
+//
+// The message is sent to the broker specified in the Producer object.
+// The message data is passed in the data parameter.
+// The function returns the message ID and any error that occurred during
+// sending.
+//
+// Optional parameters can be passed in the attr parameter.
+// The function looks for the following types:
+//   - func(id int, data []byte, err error) bool: callback function to be called
+//     when the message is received.
+//   - RecvCallback: callback function to be called when the message is received.
+//   - time.Duration: timeout value for the message. The default value is 5
+//     seconds.
 func (p *Producer) Send(data []byte, attr ...any) (id int, err error) {
 
 	// Parse attributes
+	// callback function to be called when the message is received
 	var f RecvCallback
+	// timeout value for the message
 	var timeout time.Duration = 5 * time.Second
+
+	// Look for optional parameters
 	for _, i := range attr {
 		switch v := i.(type) {
+		// Callback function to be called when the message is received
 		case func(id int, data []byte, err error) bool:
 			f = v
 		case RecvCallback:
 			f = v
+		// Timeout value for the message
 		case time.Duration:
 			timeout = v
 		}
