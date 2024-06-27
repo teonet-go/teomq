@@ -58,6 +58,7 @@ func (m *Messages) get(id int) (p *teomq.Packet, f RecvCallback, err error) {
 		err = ErrMessageNotFound
 	}
 	p = msg.p
+	f = msg.f
 	return
 }
 
