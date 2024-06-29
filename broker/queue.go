@@ -23,9 +23,9 @@ type queue struct {
 
 // message is the messageQueue data type.
 type message struct {
-	from string
-	id   int
-	data []byte
+	from string // Got message from
+	id   int    // Message ID
+	data []byte // Message data
 }
 
 // newQueue creates a new queue object.
@@ -44,26 +44,35 @@ func (q *queue) set(messages *message) {
 
 // get returns first element from queue and remove it, or returns nil and error
 // if the queue is empty.
-func (q *queue) get() (*message, error) {
+func (q *queue) get(removes ...bool) (*message, *list.Element, error) {
 	q.Lock()
 	defer q.Unlock()
 
 	// Get first element of messages queue
 	e := q.Front()
 	if e == nil {
-		return nil, ErrMessageNotFound
+		return nil, nil, ErrMessageNotFound
 	}
 
 	// Get message from element
 	m, ok := e.Value.(*message)
 	if !ok {
-		return nil, ErrMessageNotFound
+		return nil, nil, ErrMessageNotFound
 	}
 
 	// Remove element from messages queue
-	q.Remove(e)
+	if len(removes) == 0 || removes[0] {
+		q.Remove(e)
+	}
 
-	return m, nil
+	return m, e, nil
+}
+
+// del removes element from queue.
+func (q *queue) del(e *list.Element) {
+	q.Lock()
+	defer q.Unlock()
+	q.Remove(e)
 }
 
 // len returns number of elements in queue

@@ -6,10 +6,13 @@
 package broker
 
 import (
+	"fmt"
 	"log"
 	"sync"
 
 	"github.com/teonet-go/teomq"
+	"github.com/teonet-go/teomq/commands"
+	"github.com/teonet-go/teomq/subscribers"
 	"github.com/teonet-go/teonet"
 )
 
@@ -20,6 +23,8 @@ type Broker struct {
 	*answers
 	*queue
 	wait
+	*commands.Commands
+	*subscribers.Subscribers
 }
 type wait struct {
 	*sync.Mutex
@@ -39,9 +44,38 @@ func New(appShort string, attr ...interface{}) (br *Broker, err error) {
 	br.queue = newQueue()
 	br.answers = newAnswers()
 	br.consumers = newConsumers()
+	attr = br.addCommands(attr...)
 	br.Teonet, err = teomq.NewTeonet(appShort, append(attr, br.reader)...)
 	go br.process()
 	return
+}
+
+// addCommands adds command schema to broker.
+func (br *Broker) addCommands(attr ...interface{}) (outattr []interface{}) {
+
+	outattr = attr
+	for i, v := range attr {
+		switch v := v.(type) {
+		case func(*commands.Commands):
+			fmt.Println("Command schema is on")
+			outattr = append(attr[:i], attr[i+1:]...)
+
+			br.Commands = new(commands.Commands)
+			br.Commands.Init()
+
+			br.Subscribers = new(subscribers.Subscribers)
+			br.Subscribers.Init()
+
+			v(br.Commands)
+		}
+	}
+
+	return
+}
+
+// commandMode returns true if broker is in command mode.
+func (br *Broker) commandMode() bool {
+	return br.Commands != nil
 }
 
 // reader is main teonet application reader for Broker object, it receive
@@ -53,6 +87,9 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet,
 	if e.Event == teonet.EventDisconnected {
 		if err := br.consumers.del(c); err == nil {
 			log.Printf("consumer removed %s\n", c)
+		}
+		if br.commandMode() {
+			br.Subscribers.Del(c)
 		}
 		return false
 	}
@@ -100,14 +137,31 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet,
 
 			// Check answer from consumer in wait answer list
 			log.Printf("got  id %d, len %d, from consumer %s\n", ans.ID(), len(ans.Data()), c)
-			p, err := br.answers.get(answersData{c.Address(), ans.ID()})
+			ansd, err := br.answers.get(answersData{c.Address(), ans.ID()})
 			if err != nil {
+
+				// Check subscribe / unsubscribe commands from consumers
+				if br.commandMode() {
+					_, parts, err := br.Commands.Unmarshal(p.Data())
+					if err != nil {
+						switch parts[0] {
+						case subscribers.CmdSubscribe:
+							br.Subscribers.Add(c, parts[1])
+							log.Printf("subscribe command '%s' from consumer %s\n", parts[1], c)
+						case subscribers.CmdUnsubscribe:
+							br.Subscribers.DelCmd(c, parts[1])
+							log.Printf("unsubscribe command '%s' from consumer %s\n", parts[1], c)
+						}
+					}
+					return true
+				}
+
 				log.Printf("not found in answer\n")
 				return true
 			}
 
 			// Create and marshal producer answer packet
-			ans = teomq.NewPacket(uint32(p.id), ans.Data())
+			ans = teomq.NewPacket(uint32(ansd.id), ans.Data())
 			data, err := ans.MarshalBinary()
 			if err != nil {
 				log.Printf("%s\n", err)
@@ -115,13 +169,22 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet,
 			}
 
 			// Send answer to producer
-			if _, err := br.SendTo(p.addr, data); err != nil {
+			if _, err := br.SendTo(ansd.addr, data); err != nil {
 				log.Printf("send answer err: %s\n", err)
 				return true
 			}
-			log.Printf("send id %d, len %d, to producer %s\n", ans.ID(), len(ans.Data()), p.addr)
+			log.Printf("send id %d, len %d, to producer %s\n", ans.ID(), len(ans.Data()), ansd.addr)
 
 			return true
+		}
+
+		// Check command mode
+		if br.commandMode() {
+			_, _, err := br.Commands.Unmarshal(p.Data())
+			if err != nil {
+				log.Printf("%s\n", err)
+				return true
+			}
 		}
 
 		// Add messages from producers to queue
@@ -153,27 +216,75 @@ func (br *Broker) process() {
 			continue
 		}
 
-		// Get consumers channel
-		ch, err := br.consumers.get()
-		if err != nil {
-			continue
-		}
+		switch br.commandMode() {
 
-		// Get producers message
-		msg, err := br.queue.get()
-		if err != nil {
-			continue
-		}
+		// Send message to all consumers subscribed to this commandin command mode
+		case true:
+			// Get producers message (no delete)
+			msg, e, err := br.queue.get(false)
+			if err != nil {
+				continue
+			}
 
-		log.Printf("process queue message id %d, len %d, from %s\n", msg.id, len(msg.data), ch)
+			// Unmarshal command
+			cmd, _, err := br.Commands.Unmarshal(msg.data)
+			if err != nil {
+				log.Printf("command unmarshal error: %s\n", err)
+				continue
+			}
+			log.Printf("process queue message command %s, id %d, len %d, from %s\n",
+				cmd.Cmd, msg.id, len(msg.data), msg.from)
 
-		// Send message to consumer and save it to answers map
-		id, err := ch.Send(msg.data)
-		if err != nil {
-			log.Printf("can't send message to consumer, error: %s\n", err)
-			continue
+			// Send message to all consumers which was subscribed to this command
+			var sent bool
+			for _, ch := range br.consumers.list(cmd.Cmd) {
+
+				if !br.Subscribers.CheckCommand(ch, cmd.Cmd) {
+					continue
+				}
+
+				// Send message to consumer and save it to answers map
+				id, err := ch.Send(msg.data)
+				if err != nil {
+					log.Printf("can't send message to consumer, error: %s\n", err)
+					continue
+				}
+				br.answers.add(answersData{msg.from, msg.id}, answersData{ch.Address(), id})
+				log.Printf("send id %d, len %d to consumer %s\n",
+					msg.id, len(msg.data), ch)
+
+				sent = true
+			}
+			if sent {
+				br.queue.del(e)
+			}
+
+		// Send message to one consumer in basic mode
+		case false:
+			// Get consumers channel
+			ch, err := br.consumers.get()
+			if err != nil {
+				continue
+			}
+
+			// Get producers message
+			msg, _, err := br.queue.get()
+			if err != nil {
+				continue
+			}
+
+			log.Printf("process queue message id %d, len %d, from %s\n",
+				msg.id, len(msg.data), ch)
+
+			// Send message to consumer and save it to answers map
+			id, err := ch.Send(msg.data)
+			if err != nil {
+				log.Printf("can't send message to consumer, error: %s\n", err)
+				continue
+			}
+			br.answers.add(answersData{msg.from, msg.id}, answersData{ch.Address(), id})
+			log.Printf("send id %d, len %d to consumer %s\n",
+				msg.id, len(msg.data), ch)
 		}
-		br.answers.add(answersData{msg.from, msg.id}, answersData{ch.Address(), id})
-		log.Printf("send id %d, len %d to consumer %s\n", msg.id, len(msg.data), ch)
 	}
 }

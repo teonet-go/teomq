@@ -6,9 +6,11 @@
 package consumer
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/teonet-go/teomq"
+	"github.com/teonet-go/teomq/commands"
 	"github.com/teonet-go/teonet"
 )
 
@@ -16,6 +18,7 @@ import (
 type Consumer struct {
 	*teonet.Teonet
 	ProcessMessage
+	*commands.Commands
 }
 
 type ProcessMessage func(p *teonet.Packet) (answer []byte, err error)
@@ -34,12 +37,17 @@ type ProcessMessage func(p *teonet.Packet) (answer []byte, err error)
 //
 //	*Consumer: new Teonet MQueue Consumer object
 //	error: error if occurred
-func New(appShort, broker string, reader ProcessMessage, attr ...interface{}) (co *Consumer, err error) {
+func New(appShort, broker string, reader ProcessMessage, attr ...interface{}) (
+	co *Consumer, err error) {
+
 	// Create new consumer object and connect to teonet
 	co = new(Consumer)
 
 	// Append custom Reader to teonet application attributes
 	attr = append(attr, co.reader)
+
+	// Add consumer commands in command schema
+	attr = co.addCommands(attr...)
 
 	// Connect to teonet
 	co.Teonet, err = teomq.NewTeonet(appShort, attr...)
@@ -52,6 +60,48 @@ func New(appShort, broker string, reader ProcessMessage, attr ...interface{}) (c
 
 	// Connect to broker
 	err = teomq.ConnectToBroker(co.Teonet, broker)
+	if err != nil {
+		return
+	}
+
+	// Subscribe to broker commands
+	err = co.subscribeCommands(broker)
+
+	return
+}
+
+// subscribe subscribe to brokers command.
+func (co *Consumer) subscribe(broker, command string) (err error) {
+	// co.Command(0, []byte(fmt.Sprintf("subscribe/%s", command))).SendTo(broker)
+	co.SendTo(broker, []byte(fmt.Sprintf("subscribe/%s", command)))
+	return
+}
+
+// addCommands adds command schema to consumer.
+func (co *Consumer) addCommands(attr ...interface{}) (outattr []interface{}) {
+
+	outattr = attr
+	for i, v := range attr {
+		switch v := v.(type) {
+		case func(*commands.Commands):
+			fmt.Println("Command schema is on")
+			outattr = append(attr[:i], attr[i+1:]...)
+
+			co.Commands = new(commands.Commands)
+			co.Commands.Init()
+
+			v(co.Commands)
+		}
+	}
+
+	return
+}
+
+// subscribeCommands subscribe to brokers commands.
+func (co *Consumer) subscribeCommands(broker string) (err error) {
+	co.Commands.ForEach(func(command string, cmd *commands.CommandData) {
+		err = co.subscribe(broker, command)
+	})
 	return
 }
 

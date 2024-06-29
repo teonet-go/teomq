@@ -1,12 +1,14 @@
-# Teonet messages queue
+# Teonet Messages Queue
 
-The Teonet messages queue is a part of the Teonet network.
+The Teonet Messages Queue is a part of the Teonet network.
 
 A message queue is a form of asynchronous service-to-service communication used in serverless and microservices architectures. Messages are stored on the queue until they are processed and deleted. Each message is processed only once, by a single consumer. Message queues can be used to decouple heavyweight processing, to buffer or batch work, and to smooth spiky workloads.
 
 ## Basic teomq scheme
 
-The Teonet messages queue contains three basic parts:
+The basic teomq scheme works like load balancer between Producers and Consumers.
+
+The Teonet Messages Queue contains three basic parts:
 
 - Teonet messages broker
 - Teonet messages consumer
@@ -44,7 +46,7 @@ First start the Broker:
 
 ```bash
 # Start broker
-go run ./cmd/broker/
+go run ./cmd/basic/broker/
 ```
 
 When the Broker starts, it prints his teonet address in the console. This
@@ -60,14 +62,14 @@ Then start Consumer using Broker address:
 
 ```bash
 # Start consumer
-go run ./cmd/consumer/ -broker=og71X6Y8TU1Y2W4G9GkUsKmxnvvd9r2vXp2
+go run ./cmd/basic/consumer/ -broker=og71X6Y8TU1Y2W4G9GkUsKmxnvvd9r2vXp2
 ```
 
 Then start Producer using Broker address:
 
 ```bash
 # Start producer
-go run ./cmd/producer/ -broker=og71X6Y8TU1Y2W4G9GkUsKmxnvvd9r2vXp2
+go run ./cmd/basic/producer/ -broker=og71X6Y8TU1Y2W4G9GkUsKmxnvvd9r2vXp2
 ```
 
 How this Basic teomq exsample works:
@@ -77,6 +79,10 @@ Producer sends messages to Broker. Broker prints messages in the console, save i
 Consumer receives messages from Broker, prints them in the console and send it back to Broker. Broker resend this answers to Producer.
 
 You can press Ctrl+C on Consumer terminal to stop the application. When Consumer will stoped, Broker will save messages to queue. When you start Consumer again, it will read messages from Brokers queue, process them and send answers.
+
+## Command teomq scheme
+
+In command teomq scheme the Teonet Messages Queue consumers subscribes to specific commands (or events).
 
 ## License
 

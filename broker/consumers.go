@@ -25,7 +25,7 @@ type consumers struct {
 	list.List                   // list of consumers
 	indexMap                    // map of list elements by consumer channel
 	*sync.RWMutex               // mutext
-	e             *list.Element // current list element used in get function
+	element       *list.Element // current list element used in get function
 }
 type indexMap map[*teonet.Channel]*list.Element
 
@@ -60,8 +60,8 @@ func (c *consumers) del(ch *teonet.Channel) error {
 	defer c.Unlock()
 
 	if e := c.existsUnsafe(ch); e != nil {
-		if c.e == e {
-			c.e = e.Next()
+		if c.element == e {
+			c.element = e.Next()
 		}
 		c.Remove(e)
 		delete(c.indexMap, ch)
@@ -82,23 +82,40 @@ func (c *consumers) get() (*teonet.Channel, error) {
 	}
 
 	// Get current element from list
-	if c.e == nil {
-		c.e = c.Front()
-	} else if c.e = c.e.Next(); c.e == nil {
-		c.e = c.Front()
+	if c.element == nil {
+		c.element = c.Front()
+	} else if c.element = c.element.Next(); c.element == nil {
+		c.element = c.Front()
 	}
 	// TODO: perhaps this condition is not needed here, because we first check
 	// the length of the list and the element of the list must be found.
-	if c.e == nil {
+	if c.element == nil {
 		return nil, ErrConsumerNotFound
 	}
 
 	// Get list value
-	if ch, ok := c.e.Value.(*teonet.Channel); ok {
+	if ch, ok := c.element.Value.(*teonet.Channel); ok {
 		return ch, nil
 	}
 
 	return nil, ErrConsumerNotFound
+}
+
+// list returns consumers list.
+// TODO: Get list of channels which was subscribed to this command
+func (c *consumers) list(cmd string) (l []*teonet.Channel) {
+	c.RLock()
+	defer c.RUnlock()
+
+	for e := c.Front(); e != nil; e = e.Next() {
+		ch, ok := e.Value.(*teonet.Channel)
+		if !ok {
+			continue
+		}
+		l = append(l, ch)
+	}
+
+	return
 }
 
 // exists returns true if consumer exists in list or false if not.
