@@ -23,8 +23,8 @@ type Producer struct {
 }
 
 // CommandMode is true if producer is in command mode. It used in New method to
-// start producer in command mode. In command mode the producer sends commands 
-// and wait multiple answers during timeout. In normal mode it sends messages 
+// start producer in command mode. In command mode the producer sends commands
+// and wait multiple answers during timeout. In normal mode it sends messages
 // and waits only one answer.
 type CommandMode bool
 
@@ -142,7 +142,7 @@ func (p *Producer) process() {
 		// Find message in messages queue
 		_, f, err := p.Messages.get(ans.ID())
 		if err != nil {
-			log.Printf("!!! answer id %d not found: %s\n", ans.ID(), err)
+			log.Printf("answer id %d error: %s\n", ans.ID(), err)
 			return false
 		}
 
