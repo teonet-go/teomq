@@ -105,7 +105,7 @@ func (c *Commands) Exec(command string, processIn ProcessIn, data any) ([]byte, 
 	return nil, fmt.Errorf("command '%s' not found", command)
 }
 
-// ForEach call f for each added command.
+// ForEach call f fuction for each added command.
 func (c *Commands) ForEach(f func(command string, cmd *CommandData)) {
 	c.mut.RLock()
 	for command, cmd := range c.m {
@@ -144,7 +144,7 @@ type HttpRequest struct {
 	*http.Request
 }
 
-// ParseParams parses HTTP input command parameters.
+// ParseHttpParams parses HTTP input command parameters.
 func (*Commands) ParseHttpParams(command *CommandData, indata any) (*HttpRequest,
 	error) {
 
@@ -165,32 +165,54 @@ func (*Commands) ProcessBrokerCommand(cmd *CommandData, processIn ProcessIn, dat
 	return nil, nil
 }
 
-// Unmarshal unmarshals string with commands name and parameters.
-func (c *Commands) Unmarshal(data []byte) (cmd *CommandData, parts []string, vars map[string]string, err error) {
+// Unmarshal unmarshals a string into a CommandData object and returns it along with the command's
+// parts and variables.
+//
+// The input string is expected to be in the format "commandName/param1/param2/...". The function
+// splits the string by "/" and retrieves the command name. It then looks up the corresponding
+// CommandData object from the Commands map. If the command is found, the function creates a map
+// of variables by iterating over the command's parameters and assigning the corresponding values
+// from the input string. If the number of parameters is exceeded, the remaining values are ignored.
+//
+// The function returns the CommandData object, the command's parts, and the map of variables.
+// If the command is not found in the Commands map, an error is returned.
+func (c *Commands) Unmarshal(data []byte) (cmd *CommandData, parts []string,
+	vars map[string]string, err error) {
 
 	// Split data string by /
 	parts = strings.Split(string(data), "/")
 
 	// Get command name
 	command := parts[0]
+
+	// Look up the command in the Commands map
 	cmd, ok := c.get(command)
 	if !ok {
+		// Return an error if the command is not found
 		return nil, parts, nil, fmt.Errorf("command '%s' not found", command)
 	}
 
-	// Make map of variables
+	// Create a map of variables
 	vars = make(map[string]string)
 	for i, param := range strings.Split(cmd.Params, "/") {
 		if len(param) == 0 {
+			// If a parameter is empty, stop iterating
 			break
 		}
+
+		// Trim the parameter name of any leading or trailing curly braces
 		param = strings.Trim(param, "{}")
+
 		var v string
 		if len(parts) > i+1 {
+			// If there is a value for the parameter, assign it
 			v = parts[i+1]
 		}
+
+		// Assign the parameter name and value to the variables map
 		vars[param] = v
 	}
 
+	// Return the CommandData object, the command's parts, and the map of variables
 	return cmd, parts, vars, nil
 }
