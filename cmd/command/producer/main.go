@@ -61,6 +61,9 @@ func main() {
 	// answer callback function
 	attr = append(attr, reader)
 
+	// Set producer command schema
+	attr = append(attr, producer.CommandMode(true))
+
 	// Create and start new Teonet messages producer
 	prod, err := producer.New(short, *broker, attr...)
 	if err != nil {
@@ -80,7 +83,7 @@ func main() {
 		// Answer callback function
 		answer := func(id int, data []byte, err error) bool {
 			if err != nil {
-				log.Printf("recv error   id %d, error: %s\n", id, err)
+				log.Printf("message id %d removed from answers queue\n", id)
 				return true
 			}
 			log.Printf("recv answer  id %d: %s\n", id, data)

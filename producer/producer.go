@@ -6,6 +6,7 @@
 package producer
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -18,12 +19,20 @@ type Producer struct {
 	broker string
 	*teonet.Teonet
 	*Messages
+	commandMode CommandMode
 }
+
+// CommandMode is true if producer is in command mode. It used in New method to
+// start producer in command mode. In command mode the producer sends commands 
+// and wait multiple answers during timeout. In normal mode it sends messages 
+// and waits only one answer.
+type CommandMode bool
 
 // New creates a new Teonet Message Queue Producer object.
 func New(appShort, broker string, attr ...interface{}) (p *Producer, err error) {
 	p = new(Producer)
 	p.broker = broker
+	attr = p.setCommands(attr...)
 	p.Teonet, err = teomq.NewTeonet(appShort, attr...)
 	if err != nil {
 		return
@@ -31,6 +40,22 @@ func New(appShort, broker string, attr ...interface{}) (p *Producer, err error) 
 	p.Messages = NewMessages()
 	p.process()
 	teomq.ConnectToBroker(p.Teonet, broker)
+	return
+}
+
+// setCommands sets command schema.
+func (p *Producer) setCommands(attr ...interface{}) (outattr []interface{}) {
+
+	outattr = attr
+	for i, v := range attr {
+		switch v := v.(type) {
+		case CommandMode:
+			fmt.Println("Command schema is on")
+			outattr = append(attr[:i], attr[i+1:]...)
+			p.commandMode = v
+		}
+	}
+
 	return
 }
 
@@ -127,12 +152,15 @@ func (p *Producer) process() {
 		}
 
 		// Delete message
-		p.Messages.del(ans.ID())
+		if !p.commandMode {
+			p.Messages.del(ans.ID())
+		}
 
 		return true
 	})
 
-	// Check timeouts in messages queue
+	// Check timeouts in messages queue, execute callback with error and delete
+	// message
 	go func() {
 		for {
 			msg, ok := p.Messages.check()

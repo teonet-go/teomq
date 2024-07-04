@@ -44,7 +44,11 @@ func (m *Messages) add(id int, data []byte, f RecvCallback,
 
 	m.Lock()
 	defer m.Unlock()
-	ttl := time.Now().Add(timeout)
+
+	var ttl time.Time
+	if timeout != 0 {
+		ttl = time.Now().Add(timeout)
+	}
 	m.m[id] = MessagesData{f, teomq.NewPacket(uint32(id), data), ttl}
 }
 
@@ -75,7 +79,7 @@ func (m *Messages) check() (msg MessagesData, ok bool) {
 	defer m.RUnlock()
 
 	for _, msg = range m.m {
-		if time.Now().After(msg.t) {
+		if msg.t != (time.Time{}) && time.Now().After(msg.t) {
 			ok = true
 			return
 		}
