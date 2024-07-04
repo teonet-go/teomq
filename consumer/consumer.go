@@ -58,14 +58,16 @@ func New(appShort, broker string, reader ProcessMessage, attr ...interface{}) (
 	// Add custom Reader if it exists in attributes
 	co.ProcessMessage = reader
 
+	// Subscribe to broker commands
+	co.Teonet.WhenConnectedTo(broker, func() {
+		err = co.subscribeCommands(broker)
+	})
+
 	// Connect to broker
 	err = teomq.ConnectToBroker(co.Teonet, broker)
 	if err != nil {
 		return
 	}
-
-	// Subscribe to broker commands
-	err = co.subscribeCommands(broker)
 
 	return
 }
