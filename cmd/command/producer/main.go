@@ -78,7 +78,7 @@ func main() {
 	for i := 1; ; i++ {
 
 		// Make message to send
-		data := []byte("version")
+		data := []byte("version/some_data")
 
 		// Answer callback function
 		answer := func(id int, data []byte, err error) bool {

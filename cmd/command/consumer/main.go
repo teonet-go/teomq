@@ -56,16 +56,11 @@ func main() {
 		attr = append(attr, teonet.Stat(true))
 	}
 
-	// Create messages consumer reader callback function
-	reader := func(p *teonet.Packet) (answer []byte, err error) {
-		return []byte("Answer to " + string(p.Data())), nil
-	}
-
 	// Add consumer commands
 	attr = append(attr, Commands)
 
 	// Create and start new Teonet messages consumer
-	teo, err := consumer.New(short, *broker, reader, attr...)
+	teo, err := consumer.New(short, *broker, nil, attr...)
 	if err != nil {
 		panic("can't connect to Teonet, error: " + err.Error())
 	}
@@ -78,15 +73,21 @@ func main() {
 }
 
 // Commands adds available broker commands.
-func Commands(cmd *commands.Commands) {
+func Commands(c *commands.Commands) {
 	fmt.Println("Commands loaded:")
 
-	cmd.Add("version", "Get consumer version.", commands.Teonet, "",
+	c.Add("version", "Get consumer version.", commands.Teonet, "{data}/{description}",
 		func(cmd *commands.CommandData, processIn commands.ProcessIn, data any) (
 			[]byte, error) {
 
-			return []byte(appVersion), nil
+			// Parse teonet parameters
+			_, _, vars, err := c.Unmarshal(data.([]byte))
+			if err != nil {
+				return nil, err
+			}
+
+			return []byte(fmt.Sprintf("version: %s, data: %s", appVersion, vars["data"])), nil
 		})
 
-	cmd.Print()
+	c.Print()
 }

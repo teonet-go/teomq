@@ -142,7 +142,7 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet,
 
 				// Check subscribe / unsubscribe commands from consumers
 				if br.commandMode() {
-					_, parts, err := br.Commands.Unmarshal(p.Data())
+					_, parts, _, err := br.Commands.Unmarshal(p.Data())
 					if err != nil {
 						switch parts[0] {
 						case subscribers.CmdSubscribe:
@@ -180,7 +180,7 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet,
 
 		// Check command mode
 		if br.commandMode() {
-			_, _, err := br.Commands.Unmarshal(p.Data())
+			_, _, _, err := br.Commands.Unmarshal(p.Data())
 			if err != nil {
 				log.Printf("%s\n", err)
 				return true
@@ -227,7 +227,7 @@ func (br *Broker) process() {
 			}
 
 			// Unmarshal command
-			cmd, _, err := br.Commands.Unmarshal(msg.data)
+			cmd, _, _, err := br.Commands.Unmarshal(msg.data)
 			if err != nil {
 				log.Printf("command unmarshal error: %s\n", err)
 				continue

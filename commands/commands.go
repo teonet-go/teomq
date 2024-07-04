@@ -166,17 +166,31 @@ func (*Commands) ProcessBrokerCommand(cmd *CommandData, processIn ProcessIn, dat
 }
 
 // Unmarshal unmarshals string with commands name and parameters.
-func (c *Commands) Unmarshal(data []byte) (*CommandData, []string, error) {
+func (c *Commands) Unmarshal(data []byte) (cmd *CommandData, parts []string, vars map[string]string, err error) {
 
 	// Split data string by /
-	parts := strings.Split(string(data), "/")
+	parts = strings.Split(string(data), "/")
 
 	// Get command name
 	command := parts[0]
 	cmd, ok := c.get(command)
 	if !ok {
-		return nil, parts, fmt.Errorf("command '%s' not found", command)
+		return nil, parts, nil, fmt.Errorf("command '%s' not found", command)
 	}
 
-	return cmd, parts, nil
+	// Make map of variables
+	vars = make(map[string]string)
+	for i, param := range strings.Split(cmd.Params, "/") {
+		if len(param) == 0 {
+			break
+		}
+		param = strings.Trim(param, "{}")
+		var v string
+		if len(parts) > i+1 {
+			v = parts[i+1]
+		}
+		vars[param] = v
+	}
+
+	return cmd, parts, vars, nil
 }

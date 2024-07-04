@@ -72,7 +72,6 @@ func New(appShort, broker string, reader ProcessMessage, attr ...interface{}) (
 
 // subscribe subscribe to brokers command.
 func (co *Consumer) subscribe(broker, command string) (err error) {
-	// co.Command(0, []byte(fmt.Sprintf("subscribe/%s", command))).SendTo(broker)
 	co.SendTo(broker, []byte(fmt.Sprintf("subscribe/%s", command)))
 	return
 }
@@ -158,11 +157,28 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 		go func() {
 			var err error
 			var answer []byte
-			if co.ProcessMessage != nil {
+
+			// Process message
+			switch {
+
+			// Execute command
+			case co.Commands != nil:
+				var parts []string
+				_, parts, _, err = co.Commands.Unmarshal(p.Data())
+				if err == nil {
+					answer, err = co.Commands.Exec(parts[0], commands.Teonet, p.Data())
+				}
+
+			// Execute custom reader
+			case co.ProcessMessage != nil:
 				answer, err = co.ProcessMessage(p)
-			} else {
+
+			// Default answer if commands and reader does not added
+			default:
 				answer = []byte("Answer to " + string(p.Data()))
 			}
+
+			// Check error
 			if err != nil {
 				log.Printf("process message id %d, from %s, error: %s\n", p.ID(), c, err)
 				return
