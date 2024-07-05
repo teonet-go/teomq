@@ -81,12 +81,13 @@ func main() {
 		data := []byte("version/some_data")
 
 		// Answer callback function
+		t := time.Now()
 		answer := func(id int, data []byte, err error) bool {
 			if err != nil {
 				log.Printf("message id %d removed from answers queue\n", id)
 				return true
 			}
-			log.Printf("recv answer  id %d: %s\n", id, data)
+			log.Printf("recv answer  id %d: %s, time: %v\n", id, data, time.Since(t))
 			return true
 		}
 
