@@ -1,3 +1,4 @@
+// Consumer gets messages from broker and prints it to log.
 package main
 
 import (
@@ -14,8 +15,8 @@ import (
 
 const (
 	appName    = "Teonet messages consumer sample application"
-	appShort   = "teomqconsumer"
-	appVersion = "0.0.2"
+	appShort   = "usrser_mqconsumer"
+	appVersion = "0.0.1"
 )
 
 func main() {
@@ -87,6 +88,36 @@ func Commands(c *commands.Commands) {
 			}
 
 			return []byte(fmt.Sprintf("version: %s, data: %s", appVersion, vars["data"])), nil
+		})
+
+	c.Add("num_players", "Number of players.", commands.Teonet, "{num_players}",
+		func(cmd *commands.CommandData, processIn commands.ProcessIn, data any) (
+			[]byte, error) {
+
+			// Parse teonet parameters
+			_, _, vars, err := c.Unmarshal(data.([]byte))
+			if err != nil {
+				return nil, err
+			}
+
+			log.Printf("got command %s: %v", cmd.Cmd, vars[cmd.Cmd])
+
+			return nil, nil
+		})
+
+	c.Add("num_servers", "Number of servers.", commands.Teonet, "{num_servers}",
+		func(cmd *commands.CommandData, processIn commands.ProcessIn, data any) (
+			[]byte, error) {
+
+			// Parse teonet parameters
+			_, _, vars, err := c.Unmarshal(data.([]byte))
+			if err != nil {
+				return nil, err
+			}
+
+			log.Printf("got command %s: %v", cmd.Cmd, vars[cmd.Cmd])
+
+			return nil, nil
 		})
 
 	c.Print()

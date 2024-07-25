@@ -67,7 +67,7 @@ func main() {
 	}
 
 	// Print application address
-	addr := teo.Address()
+	addr := teo.Teonet.Address()
 	fmt.Println("Connected to Teonet, this app address:", addr)
 
 	select {}

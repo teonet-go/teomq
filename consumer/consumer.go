@@ -17,11 +17,14 @@ import (
 // Consumer is Teonet messages queue consumer type.
 type Consumer struct {
 	*teonet.Teonet
+	*teonet.APIClient
 	ProcessMessage
 	*commands.Commands
 }
 
 type ProcessMessage func(p *teonet.Packet) (answer []byte, err error)
+
+type API bool
 
 // New creates a new Teonet MQueue Consumer object.
 //
@@ -49,6 +52,9 @@ func New(appShort, broker string, reader ProcessMessage, attr ...interface{}) (
 	// Add consumer commands in command schema
 	attr = co.addCommands(attr...)
 
+	// Get connectAPI attribute
+	attr, connectAPI := co.addAPI(attr...)
+
 	// Connect to teonet
 	co.Teonet, err = teomq.NewTeonet(appShort, attr...)
 	if err != nil {
@@ -58,9 +64,17 @@ func New(appShort, broker string, reader ProcessMessage, attr ...interface{}) (
 	// Add custom Reader if it exists in attributes
 	co.ProcessMessage = reader
 
-	// Subscribe to broker commands
+	// Subscribe to broker commands when connected to broker
 	co.Teonet.WhenConnectedTo(broker, func() {
-		err = co.subscribeCommands(broker)
+		go func() {
+			// Add teonet api interface
+			if connectAPI {
+				co.API(broker)
+			}
+
+			// Subscribe to broker commands
+			err = co.subscribeCommands(broker)
+		}()
 	})
 
 	// Connect to broker
@@ -72,9 +86,27 @@ func New(appShort, broker string, reader ProcessMessage, attr ...interface{}) (
 	return
 }
 
+// API connects to brokers api
+func (co *Consumer) API(broker string) (err error) {
+
+	co.APIClient, err = co.Teonet.NewAPIClient(broker)
+	if err != nil {
+		log.Println("can't connect to broker api, error:", err)
+		return
+	}
+	log.Println("connected to broker api:", co.APIClient.String())
+
+	return
+}
+
 // subscribe subscribe to brokers command.
 func (co *Consumer) subscribe(broker, command string) (err error) {
-	co.SendTo(broker, []byte(fmt.Sprintf("subscribe/%s", command)))
+	data := []byte(fmt.Sprintf("subscribe/%s", command))
+	if co.APIClient == nil {
+		co.Teonet.SendTo(broker, data)
+		return
+	}
+	co.APIClient.SendTo("msg", data)
 	return
 }
 
@@ -92,9 +124,24 @@ func (co *Consumer) addCommands(attr ...interface{}) (outattr []interface{}) {
 			co.Commands.Init()
 
 			v(co.Commands)
+			return
 		}
 	}
 
+	return
+}
+
+func (co *Consumer) addAPI(attr ...interface{}) (outattr []interface{}, ok bool) {
+	outattr = attr
+	for i, v := range attr {
+		switch v.(type) {
+		case API:
+			fmt.Println("API is on")
+			outattr = append(attr[:i], attr[i+1:]...)
+			ok = true
+			return
+		}
+	}
 	return
 }
 
@@ -112,7 +159,11 @@ func (co *Consumer) sendAnswer(pac *teonet.Packet, data []byte) (err error) {
 	if err != nil {
 		return
 	}
-	_, err = co.SendTo(pac.From(), data)
+	if co.APIClient == nil {
+		_, err = co.Teonet.SendTo(pac.From(), data)
+		return
+	}
+	_, err = co.APIClient.SendTo("msg", data)
 	return
 }
 
@@ -143,10 +194,10 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 	if c.ClientMode() {
 
 		// Print received message
-		log.Printf("got  id %d, len: %d, from %s, tt: %6.3fms\n",
-			p.ID(), len(p.Data()), c,
-			float64(c.Triptime().Microseconds())/1000.0,
-		)
+		// log.Printf("got  id %d, len: %d, from %s, tt: %6.3fms\n",
+		// 	p.ID(), len(p.Data()), c,
+		// 	float64(c.Triptime().Microseconds())/1000.0,
+		// )
 
 		// Check consumerHello message from new consumer
 		if len(p.Data()) == len(teomq.ConsumerAnswer) &&
@@ -186,12 +237,17 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 				return
 			}
 
+			// Don't send empty answer
+			if len(answer) == 0 {
+				return
+			}
+
 			// Send answer
 			err = co.sendAnswer(p, answer)
 			if err != nil {
 				log.Printf("send id %d, len: %d, to %s, error: %s\n", p.ID(), len(answer), c, err)
 			} else {
-				log.Printf("send id %d, len: %d, to %s\n", p.ID(), len(answer), c)
+				// log.Printf("send id %d, len: %d, to %s\n", p.ID(), len(answer), c)
 			}
 		}()
 

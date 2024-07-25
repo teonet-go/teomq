@@ -7,6 +7,7 @@ package broker
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"sync"
 
@@ -78,9 +79,19 @@ func (br *Broker) commandMode() bool {
 	return br.Commands != nil
 }
 
+// PacketInterface is interface for teonet Packet.
+type PacketInterface interface {
+	ID() int
+	Data() []byte
+}
+
 // reader is main teonet application reader for Broker object, it receive
-// and process incoming teonet messages
+// and process incoming teonet messages.
 func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet,
+	e *teonet.Event) bool {
+	return br.readerI(c, p, e)
+}
+func (br *Broker) readerI(c *teonet.Channel, p PacketInterface,
 	e *teonet.Event) bool {
 
 	// Check channel disconnected
@@ -131,8 +142,12 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet,
 			// Unmarshal packet data to answer
 			ans := &teomq.Packet{}
 			if err := ans.UnmarshalBinary(p.Data()); err != nil {
-				log.Printf("%s\n", err)
-				return true
+				if err == io.ErrUnexpectedEOF && len(p.Data()) == 1 && p.Data()[0] == 255 {
+					log.Println("start teonet api protocol for peer", c)
+				} else {
+					log.Printf("UnmarshalBinary error: %s %v\n", err, p.Data())
+				}
+				return false
 			}
 
 			// Check answer from consumer in wait answer list
@@ -151,6 +166,8 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet,
 						case subscribers.CmdUnsubscribe:
 							br.Subscribers.DelCmd(c, parts[1])
 							log.Printf("unsubscribe command '%s' from consumer %s\n", parts[1], c)
+						default:
+							return false
 						}
 					}
 					return true
@@ -164,7 +181,7 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet,
 			ans = teomq.NewPacket(uint32(ansd.id), ans.Data())
 			data, err := ans.MarshalBinary()
 			if err != nil {
-				log.Printf("%s\n", err)
+				log.Printf("MarshalBinary error: %s\n", err)
 				return true
 			}
 
@@ -182,7 +199,7 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet,
 		if br.commandMode() {
 			_, _, _, err := br.Commands.Unmarshal(p.Data())
 			if err != nil {
-				log.Printf("%s\n", err)
+				log.Printf("check data in command mode error: %s\n", err)
 				return true
 			}
 		}
@@ -193,9 +210,32 @@ func (br *Broker) reader(c *teonet.Channel, p *teonet.Packet,
 			p.ID(), len(p.Data()), c, br.queue.Len())
 
 		br.wakeup()
+		return true
 	}
 
-	return true
+	return false
+}
+
+// apiPacket implements teonet.Packet and holds message data.
+type apiPacket struct {
+	*teonet.Packet
+	data []byte
+}
+
+// Data returns message data for teonet api protocol.
+func (p apiPacket) Data() []byte {
+	return p.data
+}
+
+// SendToReader updates data in packet and sends it to reader.
+func (br *Broker) SendToReader(c *teonet.Channel, p *teonet.Packet,
+	data []byte) error {
+
+	e := &teonet.Event{Event: teonet.EventData}
+	pac := &apiPacket{p, data}
+	br.readerI(c, pac, e)
+
+	return nil
 }
 
 // wakeup wakes up message processing when messages or(and) consumers added
