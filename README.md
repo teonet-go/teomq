@@ -80,9 +80,67 @@ Consumer receives messages from Broker, prints them in the console and send it b
 
 You can press Ctrl+C on Consumer terminal to stop the application. When Consumer will stoped, Broker will save messages to queue. When you start Consumer again, it will read messages from Brokers queue, process them and send answers.
 
-## Command teomq scheme
+## Command teomq scheme exsample
 
 In command teomq scheme the Teonet Messages Queue consumers subscribes to specific commands (or events).
+
+## Users_server exsample
+
+In users_servers example the Teonet Messages Queue consumer subscribes to specific commands (or events).
+The is two producers which send num_users and num_servers messages to Broker.
+The Broker prints messages in the console and save it to it's queue.
+The queue is processed by the consumer including the web consumer which connect to the Broker using Teoproxy package.
+
+### Run users_servers example
+
+Start Broker:
+
+```bash
+# Start broker
+go run ./cmd/users_servers/broker/
+```
+
+When the Broker starts, it prints his teonet address in the console. This
+address will be used in the next steps, when you start Consumers and Producers.
+
+The string with address looks like this:
+
+```bash
+Connected to Teonet, this app address: og71X6Y8TU1Y2W4G9GkUsKmxnvvd9r2vXp2
+```
+
+Then start Consumer using Broker address:
+
+```bash
+# Start consumer
+go run ./cmd/users_servers/consumer/ -broker=og71X6Y8TU1Y2W4G9GkUsKmxnvvd9r2vXp2
+```
+
+Then start Producers using Broker address:
+
+```bash
+# Start producers
+go run ./cmd/users_servers/produser/ -broker=J4c0OciuN5R0cYfw652T9XkuvckAnUTJj5c -name=produser-1 -command=num_servers
+```
+
+```bash
+# Start producers
+go run ./cmd/users_servers/produser/ -broker=J4c0OciuN5R0cYfw652T9XkuvckAnUTJj5c -name=produser-2 -command=num_players
+```
+
+Start web consumer:
+
+_Edit web consumer configs:_
+
+- edit port number in the [main.go](./cmd/users_servers/consumer_web/main.go) or use default value :8094
+- edit teoproxy url and broker address in the [client.js](./cmd/users_servers/consumer_web/client.js) or use default values
+
+```bash
+# Start web consumer http server
+go run ./cmd/users_servers/consumer_web/
+```
+
+Run web consumer in your browser: [http://localhost:8094/cmd/users_servers/consumer_web/client.html](http://localhost:8094/cmd/users_servers/consumer_web/client.html)
 
 ## License
 

@@ -2,14 +2,15 @@
 import TeoProxyClient from "./teoproxy.js";
 import { Command } from "./teoproxy.js";
 
-// The broker Teonet peer name
+// The Teoproxy name and the Broker Teonet peer name
+const teoproxy = "fortune-gui.teonet.dev";
 const broker = "J4c0OciuN5R0cYfw652T9XkuvckAnUTJj5c";
 
 // Create TeoProxy client object
 let teo = new TeoProxyClient();
 
 // Connect to Teonet proxy websocket and Teonet peer api.
-let connect = () => teo.connect("fortune-gui.teonet.dev", broker, subscribe);
+let connect = () => teo.connect(teoproxy, broker, subscribe);
 connect();
 
 // On close reconnect after 1 second
