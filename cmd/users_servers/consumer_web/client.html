@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>TeoProxy Client</title>
+    <link rel="icon"
+        href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🤑</text></svg>'>
+    <script type="module">
+        import { nextMessage } from "./client.js";
+        document.getElementById('nextMessage').addEventListener('click', nextMessage);
+    </script>
+    <style>
+        .connected {
+          color: green;
+        }
+        .disconnected {
+          color: red;
+        }
+    </style>
+</head>
+
+<body>
+    This web consumer subscribes to produsers data <br>
+    sent to Teonet Message Queue broker:<br>
+    <br>
+    Teoproxy: <span id="connection">connecting</span><br>
+    <br>
+    num_servers: <span id="num_servers"></span><br>
+    num_players: <span id="num_players"></span><br>
+    <br>
+    <button type="button" id="nextMessage">Send 'hello' command to broker</button>
+    <br>
+    <pre id="fortune"></pre>
+</body>
+
+</html>

@@ -200,7 +200,7 @@ func (br *Broker) readerI(c *teonet.Channel, p PacketInterface,
 			_, _, _, err := br.Commands.Unmarshal(p.Data())
 			if err != nil {
 				log.Printf("check data in command mode error: %s\n", err)
-				return true
+				return false
 			}
 		}
 

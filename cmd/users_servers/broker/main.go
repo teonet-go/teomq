@@ -119,7 +119,7 @@ func ApiCommands(teo *broker.Broker) {
 
 					// Send command data to brocker reader
 					teo.SendToReader(c, p, data)
-
+					api.SendAnswer(cmdApi, c, []byte("OK"), p)
 					return true
 				}).SetAnswerMode(teonet.DataAnswer)
 			return cmdApi
