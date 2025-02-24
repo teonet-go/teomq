@@ -8,9 +8,10 @@ package consumer
 import (
 	"fmt"
 	"log"
+	"slices"
 
+	"github.com/kirill-scherba/command/v2"
 	"github.com/teonet-go/teomq"
-	"github.com/teonet-go/teomq/commands"
 	"github.com/teonet-go/teonet"
 )
 
@@ -19,7 +20,7 @@ type Consumer struct {
 	*teonet.Teonet
 	*teonet.APIClient
 	ProcessMessage
-	*commands.Commands
+	*command.Commands
 }
 
 type ProcessMessage func(p *teonet.Packet) (answer []byte, err error)
@@ -40,7 +41,7 @@ type API bool
 //
 //	*Consumer: new Teonet MQueue Consumer object
 //	error: error if occurred
-func New(appShort, broker string, reader ProcessMessage, attr ...interface{}) (
+func New(appShort, broker string, reader ProcessMessage, attr ...any) (
 	co *Consumer, err error) {
 
 	// Create new consumer object and connect to teonet
@@ -72,8 +73,10 @@ func New(appShort, broker string, reader ProcessMessage, attr ...interface{}) (
 				co.API(broker)
 			}
 
-			// Subscribe to broker commands
-			err = co.subscribeCommands(broker)
+			// Subscribe to broker commands in command mode
+			if co.Commands != nil {
+				err = co.subscribeCommands(broker)
+			}
 		}()
 	})
 
@@ -86,7 +89,7 @@ func New(appShort, broker string, reader ProcessMessage, attr ...interface{}) (
 	return
 }
 
-// API connects to brokers api
+// API connects to brokers api.
 func (co *Consumer) API(broker string) (err error) {
 
 	co.APIClient, err = co.Teonet.NewAPIClient(broker)
@@ -100,28 +103,51 @@ func (co *Consumer) API(broker string) (err error) {
 }
 
 // subscribe subscribe to brokers command.
+//
+// Args:
+//
+//	broker: broker address
+//	command: command name to subscribe
+//
+// Returns:
+//
+//	error: error if occurred
 func (co *Consumer) subscribe(broker, command string) (err error) {
-	data := []byte(fmt.Sprintf("subscribe/%s", command))
+	// Send subscribe command to broker
+	data := fmt.Appendf(nil, "subscribe/%s", command)
+
 	if co.APIClient == nil {
+		// Send to broker directly
 		co.Teonet.SendTo(broker, data)
 		return
 	}
+	// Send to broker using API
 	co.APIClient.SendTo("msg", data)
 	return
 }
 
 // addCommands adds command schema to consumer.
-func (co *Consumer) addCommands(attr ...interface{}) (outattr []interface{}) {
+//
+// If function from command package is found in attributes list, it is removed
+// from list and command schema is set to consumer.
+//
+// Args:
+//
+//	attr: teonet application attributes
+//
+// Returns:
+//
+//	outattr: attributes list without command schema
+func (co *Consumer) addCommands(attr ...any) (outattr []any) {
 
 	outattr = attr
 	for i, v := range attr {
 		switch v := v.(type) {
-		case func(*commands.Commands):
+		case func(*command.Commands):
 			fmt.Println("Command schema is on")
-			outattr = append(attr[:i], attr[i+1:]...)
+			outattr = slices.Delete(outattr, i, i+1)
 
-			co.Commands = new(commands.Commands)
-			co.Commands.Init()
+			co.Commands = command.New()
 
 			v(co.Commands)
 			return
@@ -131,13 +157,26 @@ func (co *Consumer) addCommands(attr ...interface{}) (outattr []interface{}) {
 	return
 }
 
-func (co *Consumer) addAPI(attr ...interface{}) (outattr []interface{}, ok bool) {
+// addAPI adds API flag to consumer.
+//
+// If API flag is found in attributes list, it is removed from list and
+// flag is set to true.
+//
+// Args:
+//
+//	attr: teonet application attributes
+//
+// Returns:
+//
+//	outattr: teonet application attributes without API flag
+//	ok: true if API flag is found in attributes
+func (co *Consumer) addAPI(attr ...any) (outattr []any, ok bool) {
 	outattr = attr
 	for i, v := range attr {
 		switch v.(type) {
 		case API:
 			fmt.Println("API is on")
-			outattr = append(attr[:i], attr[i+1:]...)
+			outattr = slices.Delete(outattr, i, i+1)
 			ok = true
 			return
 		}
@@ -147,9 +186,9 @@ func (co *Consumer) addAPI(attr ...interface{}) (outattr []interface{}, ok bool)
 
 // subscribeCommands subscribe to brokers commands.
 func (co *Consumer) subscribeCommands(broker string) (err error) {
-	co.Commands.ForEach(func(command string, cmd *commands.CommandData) {
+	for command := range co.Iter() {
 		err = co.subscribe(broker, command)
-	})
+	}
 	return
 }
 
@@ -216,10 +255,8 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 
 			// Execute command
 			case co.Commands != nil:
-				var parts []string
-				_, parts, _, err = co.Commands.Unmarshal(p.Data())
-				if err == nil {
-					answer, err = co.Commands.Exec(parts[0], commands.Teonet, p.Data())
+				if _, name, _, _, e := co.ParseCommand(p.Data()); e == nil {
+					answer, err = co.Commands.Exec(name, command.Teonet, p.Data())
 				}
 
 			// Execute custom reader
@@ -233,7 +270,8 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 
 			// Check error
 			if err != nil {
-				log.Printf("process message id %d, from %s, error: %s\n", p.ID(), c, err)
+				log.Printf("process message id %d, from %s, error: %s\n",
+					p.ID(), c, err)
 				return
 			}
 
@@ -245,9 +283,11 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 			// Send answer
 			err = co.sendAnswer(p, answer)
 			if err != nil {
-				log.Printf("send id %d, len: %d, to %s, error: %s\n", p.ID(), len(answer), c, err)
+				log.Printf("send id %d, len: %d, to %s, error: %s\n",
+					p.ID(), len(answer), c, err)
 			} else {
-				// log.Printf("send id %d, len: %d, to %s\n", p.ID(), len(answer), c)
+				// log.Printf("send id %d, len: %d, to %s\n",
+				//	p.ID(), len(answer), c)
 			}
 		}()
 

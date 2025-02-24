@@ -9,7 +9,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/teonet-go/teomq/commands"
+	"github.com/kirill-scherba/command/v2"
 	"github.com/teonet-go/teomq/consumer"
 	"github.com/teonet-go/teonet"
 )
@@ -81,15 +81,16 @@ func main() {
 }
 
 // Commands adds available broker commands.
-func Commands(c *commands.Commands) {
+func Commands(c *command.Commands) {
 	fmt.Println("Commands loaded:")
 
-	c.Add("version", "Get consumer version.", commands.Teonet, "{data}/{description}",
-		func(cmd *commands.CommandData, processIn commands.ProcessIn, data any) (
+	c.Add("version", "Get consumer version.", command.Teonet, "{data}/{description}",
+		"", "", "",
+		func(cmd *command.CommandData, processIn command.ProcessIn, data any) (
 			[]byte, error) {
 
 			// Parse teonet parameters
-			_, _, vars, err := c.Unmarshal(data.([]byte))
+			_, _, vars, _, err := c.ParseCommand(data.([]byte))
 			if err != nil {
 				return nil, err
 			}
@@ -97,12 +98,13 @@ func Commands(c *commands.Commands) {
 			return []byte(fmt.Sprintf("version: %s, data: %s", appVersion, vars["data"])), nil
 		})
 
-	c.Add("num_players", "Number of players.", commands.Teonet, "{num_players}",
-		func(cmd *commands.CommandData, processIn commands.ProcessIn, data any) (
+	c.Add("num_players", "Number of players.", command.Teonet, "{num_players}",
+		"", "", "",
+		func(cmd *command.CommandData, processIn command.ProcessIn, data any) (
 			[]byte, error) {
 
 			// Parse teonet parameters
-			_, _, vars, err := c.Unmarshal(data.([]byte))
+			_, _, vars, _, err := c.ParseCommand(data.([]byte))
 			if err != nil {
 				return nil, err
 			}
@@ -112,12 +114,13 @@ func Commands(c *commands.Commands) {
 			return nil, nil
 		})
 
-	c.Add("num_servers", "Number of servers.", commands.Teonet, "{num_servers}",
-		func(cmd *commands.CommandData, processIn commands.ProcessIn, data any) (
+	c.Add("num_servers", "Number of servers.", command.Teonet, "{num_servers}",
+		"", "", "",
+		func(cmd *command.CommandData, processIn command.ProcessIn, data any) (
 			[]byte, error) {
 
 			// Parse teonet parameters
-			_, _, vars, err := c.Unmarshal(data.([]byte))
+			_, _, vars, _, err := c.ParseCommand(data.([]byte))
 			if err != nil {
 				return nil, err
 			}

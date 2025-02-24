@@ -11,10 +11,11 @@ import (
 	"log"
 	"sync"
 
+	"github.com/kirill-scherba/command/v2"
 	"github.com/teonet-go/teomq"
-	"github.com/teonet-go/teomq/commands"
 	"github.com/teonet-go/teomq/subscribers"
 	"github.com/teonet-go/teonet"
+	"slices"
 )
 
 // Broker is Teonet messages queue broker type.
@@ -24,7 +25,7 @@ type Broker struct {
 	*answers
 	*queue
 	wait
-	*commands.Commands
+	*command.Commands
 	*subscribers.Subscribers
 }
 type wait struct {
@@ -39,7 +40,7 @@ func (w *wait) init() {
 }
 
 // New creates a new Teonet MQueue Broker object.
-func New(appShort string, attr ...interface{}) (br *Broker, err error) {
+func New(appShort string, attr ...any) (br *Broker, err error) {
 	br = new(Broker)
 	br.wait.init()
 	br.queue = newQueue()
@@ -52,17 +53,16 @@ func New(appShort string, attr ...interface{}) (br *Broker, err error) {
 }
 
 // addCommands adds command schema to broker.
-func (br *Broker) addCommands(attr ...interface{}) (outattr []interface{}) {
+func (br *Broker) addCommands(attr ...any) (outattr []any) {
 
 	outattr = attr
 	for i, v := range attr {
 		switch v := v.(type) {
-		case func(*commands.Commands):
+		case func(*command.Commands):
 			fmt.Println("Command schema is on")
-			outattr = append(attr[:i], attr[i+1:]...)
+			outattr = slices.Delete(attr, i, i+1)
 
-			br.Commands = new(commands.Commands)
-			br.Commands.Init()
+			br.Commands = command.New()
 
 			br.Subscribers = new(subscribers.Subscribers)
 			br.Subscribers.Init()
@@ -157,15 +157,15 @@ func (br *Broker) readerI(c *teonet.Channel, p PacketInterface,
 
 				// Check subscribe / unsubscribe commands from consumers
 				if br.commandMode() {
-					_, parts, _, err := br.Commands.Unmarshal(p.Data())
+					_, name, _, data, err := br.ParseCommand(p.Data())
 					if err != nil {
-						switch parts[0] {
+						switch name {
 						case subscribers.CmdSubscribe:
-							br.Subscribers.Add(c, parts[1])
-							log.Printf("subscribe command '%s' from consumer %s\n", parts[1], c)
+							br.Subscribers.Add(c, string(data))
+							log.Printf("subscribe command '%s' from consumer %s\n", string(data), c)
 						case subscribers.CmdUnsubscribe:
-							br.Subscribers.DelCmd(c, parts[1])
-							log.Printf("unsubscribe command '%s' from consumer %s\n", parts[1], c)
+							br.Subscribers.DelCmd(c, string(data))
+							log.Printf("unsubscribe command '%s' from consumer %s\n", string(data), c)
 						default:
 							return false
 						}
@@ -197,7 +197,7 @@ func (br *Broker) readerI(c *teonet.Channel, p PacketInterface,
 
 		// Check command mode
 		if br.commandMode() {
-			_, _, _, err := br.Commands.Unmarshal(p.Data())
+			_, _, _, _, err := br.ParseCommand(p.Data())
 			if err != nil {
 				log.Printf("check data in command mode error: %s\n", err)
 				return false
@@ -267,7 +267,7 @@ func (br *Broker) process() {
 			}
 
 			// Unmarshal command
-			cmd, _, _, err := br.Commands.Unmarshal(msg.data)
+			cmd, _, _, _, err := br.ParseCommand(msg.data)
 			if err != nil {
 				log.Printf("command unmarshal error: %s\n", err)
 				continue

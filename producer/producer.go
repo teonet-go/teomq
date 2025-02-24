@@ -8,6 +8,7 @@ package producer
 import (
 	"fmt"
 	"log"
+	"slices"
 	"time"
 
 	"github.com/teonet-go/teomq"
@@ -29,7 +30,7 @@ type Producer struct {
 type CommandMode bool
 
 // New creates a new Teonet Message Queue Producer object.
-func New(appShort, broker string, attr ...interface{}) (p *Producer, err error) {
+func New(appShort, broker string, attr ...any) (p *Producer, err error) {
 	p = new(Producer)
 	p.broker = broker
 	attr = p.setCommands(attr...)
@@ -44,14 +45,14 @@ func New(appShort, broker string, attr ...interface{}) (p *Producer, err error) 
 }
 
 // setCommands sets command schema.
-func (p *Producer) setCommands(attr ...interface{}) (outattr []interface{}) {
+func (p *Producer) setCommands(attr ...any) (outattr []any) {
 
 	outattr = attr
 	for i, v := range attr {
 		switch v := v.(type) {
 		case CommandMode:
 			fmt.Println("Command schema is on")
-			outattr = append(attr[:i], attr[i+1:]...)
+			outattr = slices.Delete(outattr, i, i+1)
 			p.commandMode = v
 		}
 	}
