@@ -2,10 +2,10 @@ module github.com/teonet-go/teomq
 
 go 1.24.0
 
-replace github.com/kirill-scherba/command/v2 => ../../kirill-scherba/command/v2
+// replace github.com/kirill-scherba/command/v2 => ../../kirill-scherba/command/v2
 
 require (
-	github.com/kirill-scherba/command/v2 v2.3.0
+	github.com/kirill-scherba/command/v2 v2.3.1
 	github.com/teonet-go/teonet v0.6.6
 )
 
