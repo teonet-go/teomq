@@ -255,24 +255,37 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 
 			// Execute command
 			case co.Commands != nil:
-				if _, name, _, _, e := co.ParseCommand(p.Data()); e == nil {
-					answer, err = co.Commands.Exec(name, command.Teonet, p.Data())
+				// Parse command
+				_, name, vars, data, err := co.ParseCommand(p.Data())
+				if err != nil {
+					log.Printf("parse message id %d, from %s, error: %s\n",
+						p.ID(), c, err)
+					return
+				}
+
+				// Execute command using default request
+				answer, err = co.Commands.Exec(name, command.Teonet,
+					&command.DefaultRequest{Vars: vars, Data: data},
+				)
+				if err != nil {
+					log.Printf("execute command %s, id %d, from %s, error: %s\n",
+						name, p.ID(), c, err)
+					return
 				}
 
 			// Execute custom reader
 			case co.ProcessMessage != nil:
 				answer, err = co.ProcessMessage(p)
+				if err != nil {
+					log.Printf("process message in custom reader eith id %d, "+
+						"from %s, error: %s\n",
+						p.ID(), c, err)
+					return
+				}
 
 			// Default answer if commands and reader does not added
 			default:
 				answer = []byte("Answer to " + string(p.Data()))
-			}
-
-			// Check error
-			if err != nil {
-				log.Printf("process message id %d, from %s, error: %s\n",
-					p.ID(), c, err)
-				return
 			}
 
 			// Don't send empty answer

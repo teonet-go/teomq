@@ -82,13 +82,14 @@ func Commands(c *command.Commands) {
 		func(cmd *command.CommandData, processIn command.ProcessIn, data any) (
 			[]byte, error) {
 
-			// Parse teonet parameters
-			_, _, vars, _, err := c.ParseCommand(data.([]byte))
+			// Get vars
+			vars, err := c.Vars(data)
 			if err != nil {
 				return nil, err
 			}
 
-			return []byte(fmt.Sprintf("version: %s, data: %s", appVersion, vars["data"])), nil
+			return fmt.Appendf(nil, "version: %s, data: %s", appVersion,
+				vars["data"]), nil
 		})
 
 	c.Add("num_players", "Number of players.", command.Teonet, "{num_players}",
@@ -96,13 +97,13 @@ func Commands(c *command.Commands) {
 		func(cmd *command.CommandData, processIn command.ProcessIn, data any) (
 			[]byte, error) {
 
-			// Parse teonet parameters
-			_, _, vars, _, err := c.ParseCommand(data.([]byte))
+			// Get vars
+			vars, err := c.Vars(data)
 			if err != nil {
 				return nil, err
 			}
 
-			log.Printf("got command %s: %v", cmd.Cmd, vars[cmd.Cmd])
+			log.Printf("got command %s: %v", cmd.Cmd, vars["num_players"])
 
 			return nil, nil
 		})
@@ -112,13 +113,13 @@ func Commands(c *command.Commands) {
 		func(cmd *command.CommandData, processIn command.ProcessIn, data any) (
 			[]byte, error) {
 
-			// Parse teonet parameters
-			_, _, vars, _, err := c.ParseCommand(data.([]byte))
+			// Get vars
+			vars, err := c.Vars(data)
 			if err != nil {
 				return nil, err
 			}
 
-			log.Printf("got command %s: %v", cmd.Cmd, vars[cmd.Cmd])
+			log.Printf("got command %s: %v", cmd.Cmd, vars["num_servers"])
 
 			return nil, nil
 		})

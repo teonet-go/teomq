@@ -81,8 +81,14 @@ func Commands(c *command.Commands) {
 		func(cmd *command.CommandData, processIn command.ProcessIn, data any) (
 			[]byte, error) {
 
-			// Parse teonet parameters
-			_, _, vars, d, err := c.ParseCommand(data.([]byte))
+			// Get vars
+			vars, err := c.Vars(data)
+			if err != nil {
+				return nil, err
+			}
+
+			// Get data
+			d, err := c.Data(data)
 			if err != nil {
 				return nil, err
 			}
@@ -90,8 +96,8 @@ func Commands(c *command.Commands) {
 			log.Printf("process command %s, vars: %v, data_len: %d\n",
 				cmd.Cmd, vars, len(d))
 
-			return []byte(fmt.Sprintf("version: %s, data: %s",
-				appVersion, vars["data"])), nil
+			return fmt.Appendf(nil, "version: %s, data: %s",
+				appVersion, vars["data"]), nil
 		})
 
 	c.Print()
