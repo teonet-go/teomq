@@ -15,6 +15,8 @@ import (
 	"github.com/teonet-go/teonet"
 )
 
+const logprefix = "consumer: "
+
 // Consumer is Teonet messages queue consumer type.
 type Consumer struct {
 	*teonet.Teonet
@@ -94,10 +96,10 @@ func (co *Consumer) API(broker string) (err error) {
 
 	co.APIClient, err = co.Teonet.NewAPIClient(broker)
 	if err != nil {
-		log.Println("can't connect to broker api, error:", err)
+		log.Println(logprefix+"can't connect to broker api, error:", err)
 		return
 	}
-	log.Println("connected to broker api:", co.APIClient.String())
+	log.Println(logprefix+"connected to broker api:", co.APIClient.String())
 
 	return
 }
@@ -144,7 +146,7 @@ func (co *Consumer) addCommands(attr ...any) (outattr []any) {
 	for i, v := range attr {
 		switch v := v.(type) {
 		case func(*command.Commands):
-			fmt.Println("Command schema is on")
+			log.Println(logprefix + "command schema is on")
 			outattr = slices.Delete(outattr, i, i+1)
 
 			co.Commands = command.New()
@@ -213,14 +215,14 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 
 	// On connected
 	if e.Event == teonet.EventConnected {
-		log.Printf("connected to %s\n", c)
+		log.Printf(logprefix+"connected to %s\n", c)
 		c.Send(teomq.ConsumerHello)
 		return false
 	}
 
 	// On disconnected
 	if e.Event == teonet.EventDisconnected {
-		log.Printf("disconnected from %s\n", c)
+		log.Printf(logprefix+"disconnected from %s\n", c)
 		return false
 	}
 
@@ -241,7 +243,7 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 		// Check consumerHello message from new consumer
 		if len(p.Data()) == len(teomq.ConsumerAnswer) &&
 			string(p.Data()) == string(teomq.ConsumerAnswer) {
-			log.Printf("connected to broker\n")
+			log.Printf(logprefix + "connected to broker\n")
 			return true
 		}
 
@@ -268,7 +270,7 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 					&command.DefaultRequest{Vars: vars, Data: data},
 				)
 				if err != nil {
-					log.Printf("execute command %s, id %d, from %s, error: %s\n",
+					log.Printf(logprefix+"execute command %s, id %d, from %s, error: %s\n",
 						name, p.ID(), c, err)
 					return
 				}
@@ -277,7 +279,7 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 			case co.ProcessMessage != nil:
 				answer, err = co.ProcessMessage(p)
 				if err != nil {
-					log.Printf("process message in custom reader eith id %d, "+
+					log.Printf(logprefix+"process message in custom reader eith id %d, "+
 						"from %s, error: %s\n",
 						p.ID(), c, err)
 					return
@@ -296,7 +298,7 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 			// Send answer
 			err = co.sendAnswer(p, answer)
 			if err != nil {
-				log.Printf("send id %d, len: %d, to %s, error: %s\n",
+				log.Printf(logprefix+"send id %d, len: %d, to %s, error: %s\n",
 					p.ID(), len(answer), c, err)
 			} else {
 				// log.Printf("send id %d, len: %d, to %s\n",
