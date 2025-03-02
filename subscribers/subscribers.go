@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Teonet messages queue. Subscribers map module provides subscribers types
+// Teonet messages queue. Subscribers map package provides subscribers types
 // and methods.
-
 package subscribers
 
 import (
+	"fmt"
 	"sync"
+
+	"slices"
 
 	"github.com/teonet-go/teonet"
 )
@@ -38,20 +40,20 @@ func (s *Subscribers) CheckCommand(ch *teonet.Channel, command string) bool {
 
 	// Check channel exists in subscribers
 	if _, ok := s.m[ch]; !ok {
+		fmt.Print("!!! channel does not exists in subscribers map")
 		return false
 	}
 
 	// Check command exists in commands slice
-	for _, v := range s.m[ch] {
-		if v == command {
-			return true
-		}
-	}
+	// if !slices.Contains(s.m[ch], command) {
+	// 	fmt.Printf("!!! command %s does not exists in subscribers map/n", command)
+	// 	return true
+	// }
 
 	return true
 }
 
-// Add dc to subscribers map
+// Add teonet channel to subscribers map
 func (s *Subscribers) Add(ch *teonet.Channel, command string) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
@@ -63,10 +65,8 @@ func (s *Subscribers) Add(ch *teonet.Channel, command string) {
 	}
 
 	// Check command already exists in commands slice
-	for _, v := range s.m[ch] {
-		if v == command {
-			return
-		}
+	if slices.Contains(s.m[ch], command) {
+		return
 	}
 
 	// Insert new command to commands slice
@@ -81,7 +81,7 @@ func (s *Subscribers) DelCmd(ch *teonet.Channel, command string) {
 	if _, ok := s.m[ch]; ok {
 		for i, v := range s.m[ch] {
 			if v == command {
-				s.m[ch] = append(s.m[ch][:i], s.m[ch][i+1:]...)
+				s.m[ch] = slices.Delete(s.m[ch], i, i+1)
 				break
 			}
 		}

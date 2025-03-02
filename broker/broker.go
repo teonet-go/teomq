@@ -6,16 +6,19 @@
 package broker
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"sync"
 
+	"slices"
+
+	"github.com/kirill-scherba/command/v2"
 	"github.com/teonet-go/teomq"
-	"github.com/teonet-go/teomq/commands"
 	"github.com/teonet-go/teomq/subscribers"
 	"github.com/teonet-go/teonet"
 )
+
+const logprefix = "broker: "
 
 // Broker is Teonet messages queue broker type.
 type Broker struct {
@@ -24,7 +27,7 @@ type Broker struct {
 	*answers
 	*queue
 	wait
-	*commands.Commands
+	*command.Commands
 	*subscribers.Subscribers
 }
 type wait struct {
@@ -39,7 +42,7 @@ func (w *wait) init() {
 }
 
 // New creates a new Teonet MQueue Broker object.
-func New(appShort string, attr ...interface{}) (br *Broker, err error) {
+func New(appShort string, attr ...any) (br *Broker, err error) {
 	br = new(Broker)
 	br.wait.init()
 	br.queue = newQueue()
@@ -52,17 +55,16 @@ func New(appShort string, attr ...interface{}) (br *Broker, err error) {
 }
 
 // addCommands adds command schema to broker.
-func (br *Broker) addCommands(attr ...interface{}) (outattr []interface{}) {
+func (br *Broker) addCommands(attr ...any) (outattr []any) {
 
 	outattr = attr
 	for i, v := range attr {
 		switch v := v.(type) {
-		case func(*commands.Commands):
-			fmt.Println("Command schema is on")
-			outattr = append(attr[:i], attr[i+1:]...)
+		case func(*command.Commands):
+			log.Println(logprefix + "command schema is on")
+			outattr = slices.Delete(attr, i, i+1)
 
-			br.Commands = new(commands.Commands)
-			br.Commands.Init()
+			br.Commands = command.New()
 
 			br.Subscribers = new(subscribers.Subscribers)
 			br.Subscribers.Init()
@@ -97,7 +99,7 @@ func (br *Broker) readerI(c *teonet.Channel, p PacketInterface,
 	// Check channel disconnected
 	if e.Event == teonet.EventDisconnected {
 		if err := br.consumers.del(c); err == nil {
-			log.Printf("consumer removed %s\n", c)
+			log.Printf(logprefix+"consumer removed %s\n", c)
 		}
 		if br.commandMode() {
 			br.Subscribers.Del(c)
@@ -124,7 +126,7 @@ func (br *Broker) readerI(c *teonet.Channel, p PacketInterface,
 			string(p.Data()) == string(teomq.ConsumerHello) {
 
 			// Add to consumers list
-			log.Printf("consumer added %s\n", c)
+			log.Printf(logprefix+"consumer added %s\n", c)
 			br.consumers.add(c)
 
 			// Send answer
@@ -143,29 +145,29 @@ func (br *Broker) readerI(c *teonet.Channel, p PacketInterface,
 			ans := &teomq.Packet{}
 			if err := ans.UnmarshalBinary(p.Data()); err != nil {
 				if err == io.ErrUnexpectedEOF && len(p.Data()) == 1 && p.Data()[0] == 255 {
-					log.Println("start teonet api protocol for peer", c)
+					log.Println(logprefix+"start teonet api protocol for peer", c)
 				} else {
-					log.Printf("UnmarshalBinary error: %s %v\n", err, p.Data())
+					log.Printf(logprefix+"UnmarshalBinary error: %s %v\n", err, p.Data())
 				}
 				return false
 			}
 
 			// Check answer from consumer in wait answer list
-			log.Printf("got  id %d, len %d, from consumer %s\n", ans.ID(), len(ans.Data()), c)
+			log.Printf(logprefix+"got  id %d, len %d, from consumer %s\n", ans.ID(), len(ans.Data()), c)
 			ansd, err := br.answers.get(answersData{c.Address(), ans.ID()})
 			if err != nil {
 
 				// Check subscribe / unsubscribe commands from consumers
 				if br.commandMode() {
-					_, parts, _, err := br.Commands.Unmarshal(p.Data())
+					_, name, _, data, err := br.ParseCommand(p.Data())
 					if err != nil {
-						switch parts[0] {
+						switch name {
 						case subscribers.CmdSubscribe:
-							br.Subscribers.Add(c, parts[1])
-							log.Printf("subscribe command '%s' from consumer %s\n", parts[1], c)
+							br.Subscribers.Add(c, string(data))
+							log.Printf(logprefix+"subscribe command '%s' from consumer %s\n", string(data), c)
 						case subscribers.CmdUnsubscribe:
-							br.Subscribers.DelCmd(c, parts[1])
-							log.Printf("unsubscribe command '%s' from consumer %s\n", parts[1], c)
+							br.Subscribers.DelCmd(c, string(data))
+							log.Printf(logprefix+"unsubscribe command '%s' from consumer %s\n", string(data), c)
 						default:
 							return false
 						}
@@ -173,7 +175,7 @@ func (br *Broker) readerI(c *teonet.Channel, p PacketInterface,
 					return true
 				}
 
-				log.Printf("not found in answer\n")
+				log.Printf(logprefix + "not found in answer\n")
 				return true
 			}
 
@@ -181,32 +183,32 @@ func (br *Broker) readerI(c *teonet.Channel, p PacketInterface,
 			ans = teomq.NewPacket(uint32(ansd.id), ans.Data())
 			data, err := ans.MarshalBinary()
 			if err != nil {
-				log.Printf("MarshalBinary error: %s\n", err)
+				log.Printf(logprefix+"MarshalBinary error: %s\n", err)
 				return true
 			}
 
 			// Send answer to producer
 			if _, err := br.SendTo(ansd.addr, data); err != nil {
-				log.Printf("send answer err: %s\n", err)
+				log.Printf(logprefix+"send answer err: %s\n", err)
 				return true
 			}
-			log.Printf("send id %d, len %d, to producer %s\n", ans.ID(), len(ans.Data()), ansd.addr)
+			log.Printf(logprefix+"send id %d, len %d, to producer %s\n", ans.ID(), len(ans.Data()), ansd.addr)
 
 			return true
 		}
 
 		// Check command mode
 		if br.commandMode() {
-			_, _, _, err := br.Commands.Unmarshal(p.Data())
+			_, _, _, _, err := br.ParseCommand(p.Data())
 			if err != nil {
-				log.Printf("check data in command mode error: %s\n", err)
+				log.Printf(logprefix+"check data in command mode error: %s\n", err)
 				return false
 			}
 		}
 
 		// Add messages from producers to queue
 		br.set(&message{c.Address(), p.ID(), p.Data()})
-		log.Printf("add queue message id %d, len %d, from producer %s, queue length: %d\n",
+		log.Printf(logprefix+"add queue message id %d, len %d, from producer %s, queue length: %d\n",
 			p.ID(), len(p.Data()), c, br.queue.Len())
 
 		br.wakeup()
@@ -258,7 +260,8 @@ func (br *Broker) process() {
 
 		switch br.commandMode() {
 
-		// Send message to all consumers subscribed to this commandin command mode
+		// Send message to all consumers subscribed to this command in command 
+		// mode
 		case true:
 			// Get producers message (no delete)
 			msg, e, err := br.queue.get(false)
@@ -267,12 +270,12 @@ func (br *Broker) process() {
 			}
 
 			// Unmarshal command
-			cmd, _, _, err := br.Commands.Unmarshal(msg.data)
+			cmd, _, _, _, err := br.ParseCommand(msg.data)
 			if err != nil {
-				log.Printf("command unmarshal error: %s\n", err)
+				log.Printf(logprefix+"command unmarshal error: %s\n", err)
 				continue
 			}
-			log.Printf("process queue message command %s, id %d, len %d, from %s\n",
+			log.Printf(logprefix+"process queue message command %s, id %d, len %d, from %s\n",
 				cmd.Cmd, msg.id, len(msg.data), msg.from)
 
 			// Send message to all consumers which was subscribed to this command
@@ -286,11 +289,11 @@ func (br *Broker) process() {
 				// Send message to consumer and save it to answers map
 				id, err := ch.Send(msg.data)
 				if err != nil {
-					log.Printf("can't send message to consumer, error: %s\n", err)
+					log.Printf(logprefix+"can't send message to consumer, error: %s\n", err)
 					continue
 				}
 				br.answers.add(answersData{msg.from, msg.id}, answersData{ch.Address(), id})
-				log.Printf("send id %d, len %d to consumer %s\n",
+				log.Printf(logprefix+"send id %d, len %d to consumer %s\n",
 					msg.id, len(msg.data), ch)
 
 				sent = true
@@ -313,17 +316,17 @@ func (br *Broker) process() {
 				continue
 			}
 
-			log.Printf("process queue message id %d, len %d, from %s\n",
+			log.Printf(logprefix+"process queue message id %d, len %d, from %s\n",
 				msg.id, len(msg.data), ch)
 
 			// Send message to consumer and save it to answers map
 			id, err := ch.Send(msg.data)
 			if err != nil {
-				log.Printf("can't send message to consumer, error: %s\n", err)
+				log.Printf(logprefix+"can't send message to consumer, error: %s\n", err)
 				continue
 			}
 			br.answers.add(answersData{msg.from, msg.id}, answersData{ch.Address(), id})
-			log.Printf("send id %d, len %d to consumer %s\n",
+			log.Printf(logprefix+"send id %d, len %d to consumer %s\n",
 				msg.id, len(msg.data), ch)
 		}
 	}

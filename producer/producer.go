@@ -6,13 +6,15 @@
 package producer
 
 import (
-	"fmt"
 	"log"
+	"slices"
 	"time"
 
 	"github.com/teonet-go/teomq"
 	"github.com/teonet-go/teonet"
 )
+
+const logprefix = "producer: "
 
 // Producer is Teonet messages queue producers type.
 type Producer struct {
@@ -29,7 +31,7 @@ type Producer struct {
 type CommandMode bool
 
 // New creates a new Teonet Message Queue Producer object.
-func New(appShort, broker string, attr ...interface{}) (p *Producer, err error) {
+func New(appShort, broker string, attr ...any) (p *Producer, err error) {
 	p = new(Producer)
 	p.broker = broker
 	attr = p.setCommands(attr...)
@@ -44,14 +46,14 @@ func New(appShort, broker string, attr ...interface{}) (p *Producer, err error) 
 }
 
 // setCommands sets command schema.
-func (p *Producer) setCommands(attr ...interface{}) (outattr []interface{}) {
+func (p *Producer) setCommands(attr ...any) (outattr []any) {
 
 	outattr = attr
 	for i, v := range attr {
 		switch v := v.(type) {
 		case CommandMode:
-			fmt.Println("Command schema is on")
-			outattr = append(attr[:i], attr[i+1:]...)
+			log.Println(logprefix + "command schema is on")
+			outattr = slices.Delete(outattr, i, i+1)
 			p.commandMode = v
 		}
 	}
@@ -135,14 +137,14 @@ func (p *Producer) process() {
 		// Unmarshal answer
 		ans, err := Answer(pac.Data())
 		if err != nil {
-			log.Printf("answer unmarshal error: %s\n", err)
+			log.Printf(logprefix+"answer unmarshal error: %s\n", err)
 			return false
 		}
 
 		// Find message in messages queue
 		_, f, err := p.Messages.get(ans.ID())
 		if err != nil {
-			log.Printf("answer id %d error: %s\n", ans.ID(), err)
+			log.Printf(logprefix+"answer id %d error: %s\n", ans.ID(), err)
 			return false
 		}
 

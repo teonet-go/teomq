@@ -110,12 +110,12 @@ func reader(c *teonet.Channel, p *teonet.Packet, e *teonet.Event) bool {
 
 	// On connected
 	if e.Event == teonet.EventConnected {
-		fmt.Printf("connected to %s\n", c)
+		fmt.Printf("producer connected to %s\n", c)
 		return false
 	}
 
 	if e.Event == teonet.EventDisconnected {
-		fmt.Printf("disconnected from %s\n", c)
+		fmt.Printf("producer disconnected from %s\n", c)
 		return false
 	}
 

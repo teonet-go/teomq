@@ -6,8 +6,8 @@ import (
 	"io"
 	"log"
 
+	"github.com/kirill-scherba/command/v2"
 	"github.com/teonet-go/teomq/broker"
-	"github.com/teonet-go/teomq/commands"
 	"github.com/teonet-go/teonet"
 )
 
@@ -58,10 +58,10 @@ func main() {
 }
 
 // Commands adds available broker commands.
-func Commands(cmd *commands.Commands) {
+func Commands(cmd *command.Commands) {
 	fmt.Println("Commands loaded:")
 
-	cmd.Add("version", "Get consumer version.", commands.Teonet, "")
+	cmd.Add("version", "Get consumer version.", command.Teonet, "", "", "", "", nil)
 
 	cmd.Print()
 }

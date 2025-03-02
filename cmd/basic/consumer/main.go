@@ -57,6 +57,7 @@ func main() {
 
 	// Create messages consumer reader callback function
 	reader := func(p *teonet.Packet) (answer []byte, err error) {
+		log.Printf("process message %s, from %s\n",string(p.Data()), p.From())
 		return []byte("Answer to " + string(p.Data())), nil
 	}
 
