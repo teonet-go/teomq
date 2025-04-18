@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -87,7 +88,7 @@ func Commands(c *command.Commands) {
 	c.Add("version", "Get consumer version.", command.Teonet, "{data}/{description}",
 		"", "", "",
 		func(cmd *command.CommandData, processIn command.ProcessIn, data any) (
-			[]byte, error) {
+			io.Reader, error) {
 
 			// Get vars
 			vars, err := c.Vars(data)
@@ -95,13 +96,14 @@ func Commands(c *command.Commands) {
 				return nil, err
 			}
 
-			return fmt.Appendf(nil, "version: %s, data: %s", appVersion, vars["data"]), nil
+			out := fmt.Appendf(nil, "version: %s, data: %s", appVersion, vars["data"])
+			return bytes.NewReader(out), nil
 		})
 
 	c.Add("num_players", "Number of players.", command.Teonet, "{num_players}",
 		"", "", "",
 		func(cmd *command.CommandData, processIn command.ProcessIn, data any) (
-			[]byte, error) {
+			io.Reader, error) {
 
 			// Get vars
 			vars, err := c.Vars(data)
@@ -117,7 +119,7 @@ func Commands(c *command.Commands) {
 	c.Add("num_servers", "Number of servers.", command.Teonet, "{num_servers}",
 		"", "", "",
 		func(cmd *command.CommandData, processIn command.ProcessIn, data any) (
-			[]byte, error) {
+			io.Reader, error) {
 
 			// Get vars
 			vars, err := c.Vars(data)

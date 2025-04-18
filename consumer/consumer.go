@@ -7,6 +7,7 @@ package consumer
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"slices"
 
@@ -266,11 +267,19 @@ func (co *Consumer) reader(c *teonet.Channel, p *teonet.Packet,
 				}
 
 				// Execute command using default request
-				answer, err = co.Commands.Exec(name, command.Teonet,
+				r, err := co.Commands.Exec(name, command.Teonet,
 					&command.DefaultRequest{Vars: vars, Data: data},
 				)
 				if err != nil {
 					log.Printf(logprefix+"execute command %s, id %d, from %s, error: %s\n",
+						name, p.ID(), c, err)
+					return
+				}
+
+				// Read answer
+				answer, err = io.ReadAll(r)
+				if err != nil {
+					log.Printf(logprefix+"read command %s, id %d, from %s, error: %s\n",
 						name, p.ID(), c, err)
 					return
 				}
