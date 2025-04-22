@@ -10,8 +10,8 @@ github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aN
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/kirill-scherba/bslice v0.0.2 h1:ZuP0jBWKB+a6l7J6yB5bmWdm3SB6m/nfE5hKpLksH+A=
 github.com/kirill-scherba/bslice v0.0.2/go.mod h1:oMZe3puDpM84VyI0S0qc2XrepyxKJIwEovbNRJPyuTw=
-github.com/kirill-scherba/command/v2 v2.3.4 h1:686LYSZWRGTq1iqsInHry1zIo/L80Cvrkpk7LVxt+8o=
-github.com/kirill-scherba/command/v2 v2.3.4/go.mod h1:kCTOi3KnBZLUZg9yjn4/8gpTAXhLUjJuRp0Nxgyt5Vo=
+github.com/kirill-scherba/command/v2 v2.3.6 h1:IqmKN78OIobLDJAVuX/K3OLzOPd/l2YYFch/a7YCFKA=
+github.com/kirill-scherba/command/v2 v2.3.6/go.mod h1:kCTOi3KnBZLUZg9yjn4/8gpTAXhLUjJuRp0Nxgyt5Vo=
 github.com/kirill-scherba/stable v0.0.8 h1:m0GM5FCx1SJkai1o6kfQI0lKUWeupQGTicqb8EIPorg=
 github.com/kirill-scherba/stable v0.0.8/go.mod h1:Le2T16xIQmb9c9xzDVSqf7bWvpzo1pbDQLeD0s7qxZU=
 github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=
